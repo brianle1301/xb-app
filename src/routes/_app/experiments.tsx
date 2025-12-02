@@ -88,13 +88,12 @@ function BoxExperiments({ boxId, onBack }: { boxId: string; onBack: () => void }
 
   const { data: experiments } = useSuspenseQuery({
     queryKey: ["experiments", boxId],
-    queryFn: () => listExperimentsByBox(boxId),
+    queryFn: () => listExperimentsByBox({ data: boxId }),
   });
 
   const { data: selectedTask } = useSuspenseQuery({
     queryKey: ["task", selectedTaskId],
-    queryFn: () => getTask(selectedTaskId!),
-    enabled: !!selectedTaskId,
+    queryFn: () => (selectedTaskId ? getTask({ data: selectedTaskId }) : null),
   });
 
   return (
@@ -205,7 +204,7 @@ function ExperimentTasks({
   const taskQueries = taskIds.map((taskId) =>
     useSuspenseQuery({
       queryKey: ["task", taskId],
-      queryFn: () => getTask(taskId),
+      queryFn: () => getTask({ data: taskId }),
     }),
   );
 

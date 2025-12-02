@@ -1,3 +1,4 @@
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
@@ -41,13 +42,20 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           p: ({ children, ...props }) => {
             const childrenArray = React.Children.toArray(children);
             const textContent = childrenArray
-              .map((child) =>
-                typeof child === "string"
-                  ? child
-                  : typeof child === "object" && "props" in child
-                    ? child.props.children
-                    : "",
-              )
+              .map((child) => {
+                if (typeof child === "string") {
+                  return child;
+                }
+                if (
+                  typeof child === "object" &&
+                  child !== null &&
+                  "props" in child
+                ) {
+                  const childWithProps = child as { props: { children?: string } };
+                  return childWithProps.props.children || "";
+                }
+                return "";
+              })
               .join("");
 
             const youtubeRegex = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$/;

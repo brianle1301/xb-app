@@ -3,16 +3,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { connectDB } from "../db/connection";
 import { Experiment, Task } from "../db/models";
 
-export const listExperimentsByBox = createServerFn({ method: "GET" })
-  .validator((boxId: string) => boxId)
+export const listExperimentsByBox = createServerFn({ method: "POST" })
+  .inputValidator((data: string) => data)
   .handler(async ({ data: boxId }) => {
     await connectDB()();
     const experiments = await Experiment.find({ boxId }).lean();
-    return experiments;
+    return JSON.parse(JSON.stringify(experiments));
   });
 
-export const getExperimentWithTasks = createServerFn({ method: "GET" })
-  .validator((experimentId: string) => experimentId)
+export const getExperimentWithTasks = createServerFn({ method: "POST" })
+  .inputValidator((data: string) => data)
   .handler(async ({ data: experimentId }) => {
     await connectDB()();
     const experiment = await Experiment.findById(experimentId).lean();
@@ -23,21 +23,21 @@ export const getExperimentWithTasks = createServerFn({ method: "GET" })
     // Get first day's tasks
     const firstDay = experiment.days[0];
     if (!firstDay) {
-      return { ...experiment, tasks: [] };
+      return JSON.parse(JSON.stringify({ ...experiment, tasks: [] }));
     }
 
     const tasks = await Task.find({ _id: { $in: firstDay.tasks } })
       .sort({ order: 1 })
       .lean();
 
-    return { ...experiment, tasks };
+    return JSON.parse(JSON.stringify({ ...experiment, tasks }));
   });
 
 export const listAllExperiments = createServerFn({ method: "GET" }).handler(
   async () => {
     await connectDB()();
     const experiments = await Experiment.find().lean();
-    return experiments;
+    return JSON.parse(JSON.stringify(experiments));
   },
 );
 
@@ -65,6 +65,8 @@ export const getTodayTasks = createServerFn({ method: "GET" }).handler(
       }),
     );
 
-    return tasksGroupedByExperiment.filter(Boolean);
+    return JSON.parse(
+      JSON.stringify(tasksGroupedByExperiment.filter(Boolean)),
+    );
   },
 );

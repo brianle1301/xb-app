@@ -26,7 +26,7 @@ function JournalPage() {
 
   const { data: entries } = useSuspenseQuery({
     queryKey: ["journal", selectedDate],
-    queryFn: () => getJournalEntriesByDate(selectedDate),
+    queryFn: () => getJournalEntriesByDate({ data: selectedDate }),
   });
 
   const formatDate = (dateStr: string) => {

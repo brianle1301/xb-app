@@ -39,25 +39,26 @@ function TodayPage() {
 
   const { data: selectedTask } = useSuspenseQuery({
     queryKey: ["task", selectedTaskId],
-    queryFn: () => getTask(selectedTaskId!),
-    enabled: !!selectedTaskId,
+    queryFn: () => (selectedTaskId ? getTask({ data: selectedTaskId }) : null),
   });
+
+  const filteredTodayData = todayData?.filter((group) => group !== null) || [];
 
   return (
     <div className="container max-w-screen-sm mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-6">Today</h1>
 
-      {todayData && todayData.length === 0 && (
+      {filteredTodayData.length === 0 && (
         <p className="text-muted-foreground text-center py-12">
           No tasks for today. Check the Experiments tab to start one!
         </p>
       )}
 
       <div className="space-y-6">
-        {todayData?.map((group) => {
-          const experiment = group.experiment as unknown as IExperiment;
+        {filteredTodayData.map((group) => {
+          const experiment = group!.experiment as unknown as IExperiment;
           const box = experiment.boxId as unknown as IBox;
-          const tasks = group.tasks as unknown as ITask[];
+          const tasks = group!.tasks as unknown as ITask[];
 
           return (
             <Card key={experiment._id?.toString()}>

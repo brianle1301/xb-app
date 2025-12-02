@@ -7,6 +7,6 @@ export const listBoxes = createServerFn({ method: "GET" }).handler(
   async () => {
     await connectDB()();
     const boxes = await Box.find().sort({ order: 1 }).lean();
-    return boxes;
+    return JSON.parse(JSON.stringify(boxes));
   },
 );

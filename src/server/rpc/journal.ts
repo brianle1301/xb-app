@@ -3,8 +3,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { connectDB } from "../db/connection";
 import { JournalEntry } from "../db/models";
 
-export const getJournalEntriesByDate = createServerFn({ method: "GET" })
-  .validator((date: string) => date)
+export const getJournalEntriesByDate = createServerFn({ method: "POST" })
+  .inputValidator((data: string) => data)
   .handler(async ({ data: dateStr }) => {
     await connectDB()();
     const date = new Date(dateStr);
@@ -22,5 +22,6 @@ export const getJournalEntriesByDate = createServerFn({ method: "GET" })
       .sort({ date: -1 })
       .lean();
 
-    return entries;
-  });
+    return JSON.parse(JSON.stringify(entries));
+  },
+);
