@@ -23,7 +23,7 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Bloctopus Admin Console",
+        title: "XB Health Experiments",
       },
     ],
     links: [{ rel: "stylesheet", href: appCSS }],
