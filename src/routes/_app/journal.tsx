@@ -1,9 +1,17 @@
+import React from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { CalendarDays } from "lucide-react";
 
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/lib/auth-context";
 import { getLocalized, useLanguage } from "@/lib/language-context";
@@ -22,17 +30,16 @@ function JournalPage() {
   const { language } = useLanguage();
   const { user } = useAuth();
   const userId = user!.id;
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
+
+  const dateStr = selectedDate.toISOString().split("T")[0];
 
   const { data: entries } = useSuspenseQuery({
-    queryKey: ["journal", userId, selectedDate],
-    queryFn: () => getJournalEntriesByDate({ data: { userId, date: selectedDate } }),
+    queryKey: ["journal", userId, dateStr],
+    queryFn: () => getJournalEntriesByDate({ data: { userId, date: dateStr } }),
   });
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
       weekday: "long",
       year: "numeric",
@@ -47,28 +54,37 @@ function JournalPage() {
         {language === "es" ? "Diario" : "Journal"}
       </h1>
 
-      <div className="mb-6">
-        <Input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="max-w-xs"
+      <div className="flex justify-center mb-6">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={(date) => date && setSelectedDate(date)}
+          disabled={(date) => date > new Date()}
         />
-        <p className="text-sm text-muted-foreground mt-2">
-          {formatDate(selectedDate)}
-        </p>
       </div>
 
+      <p className="text-center text-sm text-muted-foreground mb-6">
+        {formatDate(selectedDate)}
+      </p>
+
       {entries && entries.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CalendarDays className="size-5" />
+            </EmptyMedia>
+            <EmptyTitle>
+              {language === "es"
+                ? "No hay entradas"
+                : "No entries"}
+            </EmptyTitle>
+            <EmptyDescription>
               {language === "es"
                 ? "No hay entradas para este día"
-                : "No entries for this day"}
-            </p>
-          </CardContent>
-        </Card>
+                : "No journal entries for this day"}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       )}
 
       <div className="space-y-4">

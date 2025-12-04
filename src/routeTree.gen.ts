@@ -17,6 +17,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppExperimentsRouteImport } from './routes/_app/experiments'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AppBoxesBoxIdExperimentsRouteImport } from './routes/_app/boxes/$boxId.experiments'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -57,6 +58,12 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppBoxesBoxIdExperimentsRoute =
+  AppBoxesBoxIdExperimentsRouteImport.update({
+    id: '/boxes/$boxId/experiments',
+    path: '/boxes/$boxId/experiments',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/today': typeof AppTodayRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,6 +83,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/today': typeof AppTodayRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +95,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/today': typeof AppTodayRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/_app/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/today'
     | '/api/auth/$'
+    | '/boxes/$boxId/experiments'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/today'
     | '/api/auth/$'
+    | '/boxes/$boxId/experiments'
   id:
     | '__root__'
     | '/'
@@ -116,6 +128,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/today'
     | '/api/auth/$'
+    | '/_app/boxes/$boxId/experiments'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -183,6 +196,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/boxes/$boxId/experiments': {
+      id: '/_app/boxes/$boxId/experiments'
+      path: '/boxes/$boxId/experiments'
+      fullPath: '/boxes/$boxId/experiments'
+      preLoaderRoute: typeof AppBoxesBoxIdExperimentsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -191,6 +211,7 @@ interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTodayRoute: typeof AppTodayRoute
+  AppBoxesBoxIdExperimentsRoute: typeof AppBoxesBoxIdExperimentsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -198,6 +219,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTodayRoute: AppTodayRoute,
+  AppBoxesBoxIdExperimentsRoute: AppBoxesBoxIdExperimentsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

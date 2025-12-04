@@ -9,6 +9,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import appCSS from "@/index.css?url";
+import { ThemeProvider } from "@/lib/theme-context";
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -38,9 +39,11 @@ function RouteComponent() {
         <HeadContent />
       </head>
       <body>
-        <Outlet />
-        <TanStackRouterDevtools position="bottom-right" />
-        <ReactQueryDevtools buttonPosition="bottom-left" />
+        <ThemeProvider>
+          <Outlet />
+          <TanStackRouterDevtools position="bottom-right" />
+          <ReactQueryDevtools buttonPosition="bottom-left" />
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>

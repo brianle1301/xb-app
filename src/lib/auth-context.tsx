@@ -1,6 +1,6 @@
-import { createContext, useContext, type ReactNode } from "react";
+import React from "react";
 
-import { useSession, type Session } from "@/lib/auth-client";
+import { type Session, useSession } from "@/lib/auth-client";
 
 type AuthContextType = {
   user: Session["user"] | null;
@@ -8,9 +8,9 @@ type AuthContextType = {
   isPending: boolean;
 };
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = React.createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data, isPending } = useSession();
 
   return (
@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context = React.useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }

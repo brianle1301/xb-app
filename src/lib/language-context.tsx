@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import React from "react";
 
 import type { Language } from "@/server/db/models";
 
@@ -7,22 +7,18 @@ interface LanguageContextType {
   setLanguage: (lang: Language) => void;
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(
+const LanguageContext = React.createContext<LanguageContextType | undefined>(
   undefined,
 );
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>("en");
+function getInitialLanguage(): Language {
+  if (typeof window === "undefined") return "en";
+  const browserLang = navigator.language.split("-")[0];
+  return browserLang === "es" ? "es" : "en";
+}
 
-  useEffect(() => {
-    // Detect browser language
-    const browserLang = navigator.language.split("-")[0];
-    if (browserLang === "es") {
-      setLanguage("es");
-    } else {
-      setLanguage("en");
-    }
-  }, []);
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [language, setLanguage] = React.useState<Language>(getInitialLanguage);
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage }}>
@@ -32,7 +28,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useLanguage() {
-  const context = useContext(LanguageContext);
+  const context = React.useContext(LanguageContext);
   if (context === undefined) {
     throw new Error("useLanguage must be used within a LanguageProvider");
   }

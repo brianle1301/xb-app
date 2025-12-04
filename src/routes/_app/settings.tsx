@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
+import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/lib/auth-context";
 import { signOut } from "@/lib/auth-client";
+import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
+import { useTheme } from "@/lib/theme-context";
 
 export const Route = createFileRoute("/_app/settings")({
   component: SettingsPage,
@@ -14,12 +15,19 @@ export const Route = createFileRoute("/_app/settings")({
 function SettingsPage() {
   const { language } = useLanguage();
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
     navigate({ to: "/login" });
   };
+
+  const themeOptions = [
+    { value: "light" as const, label: language === "es" ? "Claro" : "Light", icon: Sun },
+    { value: "dark" as const, label: language === "es" ? "Oscuro" : "Dark", icon: Moon },
+    { value: "system" as const, label: language === "es" ? "Sistema" : "System", icon: Monitor },
+  ];
 
   return (
     <div className="container max-w-screen-sm mx-auto px-4 py-6">
@@ -28,6 +36,32 @@ function SettingsPage() {
       </h1>
 
       <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {language === "es" ? "Apariencia" : "Appearance"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              {language === "es" ? "Tema" : "Theme"}
+            </p>
+            <div className="flex gap-2">
+              {themeOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={theme === option.value ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setTheme(option.value)}
+                >
+                  <option.icon className="w-4 h-4 mr-2" />
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>

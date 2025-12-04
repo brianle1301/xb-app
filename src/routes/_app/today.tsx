@@ -1,3 +1,4 @@
+import React from "react";
 import {
   useMutation,
   useQueryClient,
@@ -5,7 +6,6 @@ import {
 } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, ChevronRight, FlaskConical, Undo2 } from "lucide-react";
-import { useState } from "react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Button } from "@/components/ui/button";
@@ -48,11 +48,11 @@ function TodayPage() {
   const { user } = useAuth();
   const userId = user!.id;
   const queryClient = useQueryClient();
-  const [selectedTask, setSelectedTask] = useState<any | null>(null);
-  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<
+  const [selectedTask, setSelectedTask] = React.useState<any | null>(null);
+  const [selectedSubscriptionId, setSelectedSubscriptionId] = React.useState<
     string | null
   >(null);
-  const [selectedDayNumber, setSelectedDayNumber] = useState<number | null>(
+  const [selectedDayNumber, setSelectedDayNumber] = React.useState<number | null>(
     null,
   );
 
@@ -107,20 +107,22 @@ function TodayPage() {
       <h1 className="text-3xl font-bold mb-6">Today</h1>
 
       {filteredTodayData.length === 0 && (
-        <Empty className="mt-8">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FlaskConical className="size-5" />
-            </EmptyMedia>
-            <EmptyTitle>No tasks for today</EmptyTitle>
-            <EmptyDescription>
-              Start an experiment to see your daily tasks here.
-            </EmptyDescription>
-          </EmptyHeader>
-          <Button asChild>
-            <Link to="/experiments">Browse Experiments</Link>
-          </Button>
-        </Empty>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FlaskConical className="size-5" />
+              </EmptyMedia>
+              <EmptyTitle>No tasks for today</EmptyTitle>
+              <EmptyDescription>
+                Start an experiment to see your daily tasks here.
+              </EmptyDescription>
+            </EmptyHeader>
+            <Button asChild>
+              <Link to="/experiments">Browse Experiments</Link>
+            </Button>
+          </Empty>
+        </div>
       )}
 
       <div className="space-y-6">
@@ -207,7 +209,7 @@ function TodayPage() {
           }
         }}
       >
-        <DrawerContent className="max-h-[85vh] overflow-y-auto">
+        <DrawerContent className="max-h-[85vh]">
           {selectedTask && (
             <>
               <DrawerHeader>
@@ -228,7 +230,7 @@ function TodayPage() {
                   </span>
                 </DrawerTitle>
               </DrawerHeader>
-              <div className="px-4 pb-8">
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
                 {selectedTask.blocks?.map((block: any, index: number) => (
                   <MarkdownRenderer
                     key={index}
@@ -236,7 +238,7 @@ function TodayPage() {
                   />
                 ))}
               </div>
-              <div className="sticky bottom-0 p-4 border-t bg-background flex gap-2">
+              <div className="p-4 border-t bg-background flex gap-2">
                 {selectedSubscriptionId && selectedDayNumber !== null && (
                   <Button
                     variant={selectedTaskCompleted ? "outline" : "default"}

@@ -302,7 +302,7 @@ async function seed() {
     console.log("Created boxes");
 
     // Create Experiments with inlined tasks
-    const sleepExp1 = await Experiment.create({
+    await Experiment.create({
       name: { en: "Better Sleep in 5 Days", es: "Mejor sueño en 5 días" },
       description: {
         en: "Establish healthy sleep habits through consistent routines",
@@ -318,7 +318,7 @@ async function seed() {
       ],
     });
 
-    const eatExp1 = await Experiment.create({
+    await Experiment.create({
       name: { en: "Hydration Challenge", es: "Desafío de hidratación" },
       description: {
         en: "Build the habit of drinking enough water daily",
@@ -334,7 +334,7 @@ async function seed() {
       ],
     });
 
-    const eatExp2 = await Experiment.create({
+    await Experiment.create({
       name: { en: "Veggie Boost", es: "Impulso vegetal" },
       description: {
         en: "Increase your daily vegetable intake",
@@ -350,7 +350,7 @@ async function seed() {
       ],
     });
 
-    const moveExp1 = await Experiment.create({
+    await Experiment.create({
       name: { en: "Morning Movement", es: "Movimiento matutino" },
       description: {
         en: "Start your day with energizing movement",
