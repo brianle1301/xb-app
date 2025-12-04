@@ -40,9 +40,9 @@ export function useLanguage() {
 }
 
 // Utility function to get localized text
-export function getLocalized<T extends { en: string; es: string }>(
-  text: T,
+export function getLocalized(
+  text: { en: string; es: string } | null | undefined,
   language: Language,
 ): string {
-  return text[language];
+  return text?.[language] ?? "";
 }

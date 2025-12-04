@@ -1,10 +1,15 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
 import { useState } from "react";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { ChevronRight, Play } from "lucide-react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Collapsible,
@@ -20,10 +25,15 @@ import {
 } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { getLocalized, useLanguage } from "@/lib/language-context";
-import type { IBox, IExperiment, ITask } from "@/server/db/models";
 import { listBoxes } from "@/server/rpc/boxes";
 import { listExperimentsByBox } from "@/server/rpc/experiments";
-import { getTask } from "@/server/rpc/tasks";
+import {
+  getUserSubscriptions,
+  startSubscription,
+} from "@/server/rpc/subscriptions";
+
+// Hardcoded for now - in a real app this would come from auth
+const DEMO_USER_ID = "demo-user";
 
 export const Route = createFileRoute("/_app/experiments")({
   component: ExperimentsPage,
@@ -43,17 +53,36 @@ function ExperimentsPage() {
     queryFn: () => listBoxes(),
   });
 
+  const { data: subscriptions } = useSuspenseQuery({
+    queryKey: ["subscriptions", DEMO_USER_ID],
+    queryFn: () => getUserSubscriptions({ data: DEMO_USER_ID }),
+  });
+
+  // Create a map for quick lookup
+  const subscriptionMap = new Map<string, (typeof subscriptions)[number]>();
+  subscriptions?.forEach((sub) => {
+    if (sub && sub.experimentId) {
+      const experimentId =
+        typeof sub.experimentId === "object"
+          ? (sub.experimentId as any)._id
+          : sub.experimentId;
+      if (experimentId) {
+        subscriptionMap.set(experimentId, sub);
+      }
+    }
+  });
+
   return (
     <div className="container max-w-screen-sm mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-6">Experiments</h1>
 
       {!selectedBoxId ? (
         <div className="grid gap-4">
-          {(boxes as unknown as IBox[])?.map((box) => (
+          {boxes?.map((box) => (
             <Card
-              key={box._id?.toString()}
+              key={box._id}
               className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedBoxId(box._id?.toString()!)}
+              onClick={() => setSelectedBoxId(box._id)}
             >
               <CardHeader>
                 <div className="flex items-start gap-4">
@@ -73,15 +102,28 @@ function ExperimentsPage() {
           ))}
         </div>
       ) : (
-        <BoxExperiments boxId={selectedBoxId} onBack={() => setSelectedBoxId(null)} />
+        <BoxExperiments
+          boxId={selectedBoxId}
+          subscriptionMap={subscriptionMap}
+          onBack={() => setSelectedBoxId(null)}
+        />
       )}
     </div>
   );
 }
 
-function BoxExperiments({ boxId, onBack }: { boxId: string; onBack: () => void }) {
+function BoxExperiments({
+  boxId,
+  subscriptionMap,
+  onBack,
+}: {
+  boxId: string;
+  subscriptionMap: Map<string, any>;
+  onBack: () => void;
+}) {
   const { language } = useLanguage();
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [expandedExperimentId, setExpandedExperimentId] = useState<
     string | null
   >(null);
@@ -91,9 +133,13 @@ function BoxExperiments({ boxId, onBack }: { boxId: string; onBack: () => void }
     queryFn: () => listExperimentsByBox({ data: boxId }),
   });
 
-  const { data: selectedTask } = useSuspenseQuery({
-    queryKey: ["task", selectedTaskId],
-    queryFn: () => (selectedTaskId ? getTask({ data: selectedTaskId }) : null),
+  const startMutation = useMutation({
+    mutationFn: (subscriptionId: string) =>
+      startSubscription({ data: { subscriptionId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["today-tasks"] });
+    },
   });
 
   return (
@@ -107,28 +153,41 @@ function BoxExperiments({ boxId, onBack }: { boxId: string; onBack: () => void }
       </button>
 
       <div className="space-y-3">
-        {(experiments as unknown as IExperiment[])?.map((experiment) => {
-          const isExpanded = expandedExperimentId === experiment._id?.toString();
-          const dayCount = experiment.days.length;
-          const firstDay = experiment.days[0];
+        {experiments?.map((experiment) => {
+          const experimentId = experiment._id;
+          const subscription = subscriptionMap.get(experimentId);
+          const isExpanded = expandedExperimentId === experimentId;
+          const dayCount = experiment.days?.length ?? 0;
+          const firstDayTasks = experiment.days?.[0]?.tasks ?? [];
+
+          const status = subscription?.status;
+          const currentDay = subscription?.currentDay;
 
           return (
             <Collapsible
-              key={experiment._id?.toString()}
+              key={experimentId}
               open={isExpanded}
               onOpenChange={(open) =>
-                setExpandedExperimentId(
-                  open ? experiment._id?.toString()! : null,
-                )
+                setExpandedExperimentId(open ? experimentId : null)
               }
             >
               <Card>
                 <CollapsibleTrigger className="w-full">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <div className="flex-1 text-left">
-                      <h3 className="text-lg font-semibold">
-                        {getLocalized(experiment.name, language)}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-semibold">
+                          {getLocalized(experiment.name, language)}
+                        </h3>
+                        {status === "started" && currentDay && (
+                          <Badge variant="default">
+                            Day {currentDay}/{dayCount}
+                          </Badge>
+                        )}
+                        {status === "offered" && (
+                          <Badge variant="secondary">New</Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {dayCount} {dayCount === 1 ? "day" : "days"}
                       </p>
@@ -142,11 +201,57 @@ function BoxExperiments({ boxId, onBack }: { boxId: string; onBack: () => void }
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <CardContent className="pt-0">
-                    <ExperimentTasks
-                      experimentId={experiment._id?.toString()!}
-                      taskIds={firstDay?.tasks.map((t) => t.toString()) || []}
-                      onTaskClick={setSelectedTaskId}
-                    />
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {getLocalized(experiment.description, language)}
+                    </p>
+
+                    {status === "offered" && subscription && (
+                      <Button
+                        className="w-full mb-4"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startMutation.mutate(subscription._id);
+                        }}
+                        disabled={startMutation.isPending}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        {startMutation.isPending
+                          ? "Starting..."
+                          : "Start Experiment"}
+                      </Button>
+                    )}
+
+                    {status === "started" && (
+                      <div className="mb-4 p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium">
+                          Currently on Day {currentDay} of {dayCount}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Check the Today tab for your daily tasks
+                        </p>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Day 1 Preview:
+                    </p>
+                    <div className="space-y-2">
+                      {firstDayTasks.map((task: any) => (
+                        <button
+                          key={task._id}
+                          onClick={() => setSelectedTask(task)}
+                          className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl">{task.icon}</span>
+                            <span className="font-medium">
+                              {getLocalized(task.name, language)}
+                            </span>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        </button>
+                      ))}
+                    </div>
                   </CardContent>
                 </CollapsibleContent>
               </Card>
@@ -156,8 +261,8 @@ function BoxExperiments({ boxId, onBack }: { boxId: string; onBack: () => void }
       </div>
 
       <Drawer
-        open={!!selectedTaskId}
-        onOpenChange={(open) => !open && setSelectedTaskId(null)}
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
       >
         <DrawerContent className="max-h-[85vh] overflow-y-auto">
           {selectedTask && (
@@ -169,7 +274,7 @@ function BoxExperiments({ boxId, onBack }: { boxId: string; onBack: () => void }
                 </DrawerTitle>
               </DrawerHeader>
               <div className="px-4 pb-8">
-                {selectedTask.blocks.map((block, index) => (
+                {selectedTask.blocks?.map((block: any, index: number) => (
                   <MarkdownRenderer
                     key={index}
                     content={getLocalized(block.content, language)}
@@ -186,47 +291,5 @@ function BoxExperiments({ boxId, onBack }: { boxId: string; onBack: () => void }
         </DrawerContent>
       </Drawer>
     </>
-  );
-}
-
-function ExperimentTasks({
-  experimentId,
-  taskIds,
-  onTaskClick,
-}: {
-  experimentId: string;
-  taskIds: string[];
-  onTaskClick: (taskId: string) => void;
-}) {
-  const { language } = useLanguage();
-
-  // Fetch all tasks for this experiment
-  const taskQueries = taskIds.map((taskId) =>
-    useSuspenseQuery({
-      queryKey: ["task", taskId],
-      queryFn: () => getTask({ data: taskId }),
-    }),
-  );
-
-  const tasks = taskQueries.map((query) => query.data) as unknown as ITask[];
-
-  return (
-    <div className="space-y-2">
-      {tasks.map((task) => (
-        <button
-          key={task._id?.toString()}
-          onClick={() => onTaskClick(task._id?.toString()!)}
-          className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors text-left"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-xl">{task.icon}</span>
-            <span className="font-medium">
-              {getLocalized(task.name, language)}
-            </span>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground" />
-        </button>
-      ))}
-    </div>
   );
 }

@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { getLocalized, useLanguage } from "@/lib/language-context";
-import type { IExperiment, IJournalEntry, ITask } from "@/server/db/models";
 import { getJournalEntriesByDate } from "@/server/rpc/journal";
 
 export const Route = createFileRoute("/_app/journal")({
@@ -70,9 +69,9 @@ function JournalPage() {
       )}
 
       <div className="space-y-4">
-        {(entries as unknown as IJournalEntry[])?.map((entry) => {
-          const task = entry.taskId as unknown as ITask;
-          const experiment = entry.experimentId as unknown as IExperiment;
+        {entries?.map((entry) => {
+          const task = entry.taskId as any;
+          const experiment = entry.experimentId as any;
           const time = new Date(entry.date).toLocaleTimeString(
             language === "es" ? "es-ES" : "en-US",
             {
@@ -82,7 +81,7 @@ function JournalPage() {
           );
 
           return (
-            <Card key={entry._id?.toString()}>
+            <Card key={entry._id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">

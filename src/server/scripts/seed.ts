@@ -1,78 +1,29 @@
 import mongoose from "mongoose";
 
-import { Box, Experiment, JournalEntry, Task } from "../db/models";
+import {
+  Box,
+  Experiment,
+  JournalEntry,
+  Subscription,
+  TaskCompletion,
+} from "../db/models";
 
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/xb-app";
 
-async function seed() {
-  try {
-    await mongoose.connect(MONGODB_URI);
-    console.log("Connected to MongoDB");
-
-    // Clear existing data
-    await Promise.all([
-      Box.deleteMany({}),
-      Experiment.deleteMany({}),
-      Task.deleteMany({}),
-      JournalEntry.deleteMany({}),
-    ]);
-    console.log("Cleared existing data");
-
-    // Create Boxes
-    const sleepBox = await Box.create({
-      name: {
-        en: "Sleep",
-        es: "Dormir",
-      },
-      description: {
-        en: "Improve your sleep quality and establish better sleep habits",
-        es: "Mejora la calidad de tu sueño y establece mejores hábitos de sueño",
-      },
-      thumbnail: "🌙",
-      order: 1,
-    });
-
-    const eatBox = await Box.create({
-      name: {
-        en: "Eat",
-        es: "Comer",
-      },
-      description: {
-        en: "Develop healthier eating habits and nutrition awareness",
-        es: "Desarrolla hábitos alimenticios más saludables y conciencia nutricional",
-      },
-      thumbnail: "🥗",
-      order: 2,
-    });
-
-    const moveBox = await Box.create({
-      name: {
-        en: "Move",
-        es: "Moverse",
-      },
-      description: {
-        en: "Build a sustainable exercise routine and stay active",
-        es: "Construye una rutina de ejercicio sostenible y mantente activo",
-      },
-      thumbnail: "🏃",
-      order: 3,
-    });
-
-    console.log("Created boxes");
-
-    // Create Tasks for Sleep Experiments
-    const sleepTask1 = await Task.create({
-      name: {
-        en: "Set a consistent bedtime",
-        es: "Establece una hora de dormir consistente",
-      },
-      icon: "⏰",
-      blocks: [
-        {
-          type: "markdown",
-          content: {
-            en: `# Set Your Bedtime
+// Reusable task definitions
+const tasks = {
+  setBedtime: {
+    name: {
+      en: "Set a consistent bedtime",
+      es: "Establece una hora de dormir consistente",
+    },
+    icon: "⏰",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# Set Your Bedtime
 
 Choose a bedtime that allows for 7-9 hours of sleep before you need to wake up.
 
@@ -90,7 +41,7 @@ Consistent sleep schedules help regulate your circadian rhythm, making it easier
 Watch this quick guide on setting up your sleep schedule:
 
 https://www.youtube.com/watch?v=nm1TxQj9IsQ`,
-            es: `# Establece tu hora de dormir
+          es: `# Establece tu hora de dormir
 
 Elige una hora de dormir que permita 7-9 horas de sueño antes de que necesites despertar.
 
@@ -108,23 +59,21 @@ Los horarios de sueño consistentes ayudan a regular tu ritmo circadiano, facili
 Mira esta guía rápida sobre cómo configurar tu horario de sueño:
 
 https://www.youtube.com/watch?v=nm1TxQj9IsQ`,
-          },
         },
-      ],
-      order: 1,
-    });
-
-    const sleepTask2 = await Task.create({
-      name: {
-        en: "Create a bedtime routine",
-        es: "Crea una rutina antes de dormir",
       },
-      icon: "🧘",
-      blocks: [
-        {
-          type: "markdown",
-          content: {
-            en: `# Build Your Wind-Down Routine
+    ],
+  },
+  bedtimeRoutine: {
+    name: {
+      en: "Create a bedtime routine",
+      es: "Crea una rutina antes de dormir",
+    },
+    icon: "🧘",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# Build Your Wind-Down Routine
 
 A consistent pre-sleep routine signals your body it's time to rest.
 
@@ -135,7 +84,7 @@ A consistent pre-sleep routine signals your body it's time to rest.
 - Gentle music
 
 Avoid screens for at least 30 minutes before bed!`,
-            es: `# Construye tu rutina de relajación
+          es: `# Construye tu rutina de relajación
 
 Una rutina constante antes de dormir señala a tu cuerpo que es hora de descansar.
 
@@ -146,24 +95,21 @@ Una rutina constante antes de dormir señala a tu cuerpo que es hora de descansa
 - Música suave
 
 ¡Evita las pantallas al menos 30 minutos antes de dormir!`,
-          },
         },
-      ],
-      order: 2,
-    });
-
-    // Create Tasks for Eat Experiments
-    const eatTask1 = await Task.create({
-      name: {
-        en: "Track your water intake",
-        es: "Rastrea tu consumo de agua",
       },
-      icon: "💧",
-      blocks: [
-        {
-          type: "markdown",
-          content: {
-            en: `# Stay Hydrated
+    ],
+  },
+  trackWater: {
+    name: {
+      en: "Track your water intake",
+      es: "Rastrea tu consumo de agua",
+    },
+    icon: "💧",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# Stay Hydrated
 
 Aim to drink at least 8 glasses of water today.
 
@@ -174,7 +120,7 @@ Aim to drink at least 8 glasses of water today.
 - Enhanced cognitive function
 
 Keep a water bottle with you throughout the day!`,
-            es: `# Mantente hidratado
+          es: `# Mantente hidratado
 
 Intenta beber al menos 8 vasos de agua hoy.
 
@@ -185,23 +131,21 @@ Intenta beber al menos 8 vasos de agua hoy.
 - Función cognitiva mejorada
 
 ¡Mantén una botella de agua contigo durante el día!`,
-          },
         },
-      ],
-      order: 1,
-    });
-
-    const eatTask2 = await Task.create({
-      name: {
-        en: "Add vegetables to every meal",
-        es: "Agrega vegetales a cada comida",
       },
-      icon: "🥦",
-      blocks: [
-        {
-          type: "markdown",
-          content: {
-            en: `# Eat More Vegetables
+    ],
+  },
+  addVegetables: {
+    name: {
+      en: "Add vegetables to every meal",
+      es: "Agrega vegetales a cada comida",
+    },
+    icon: "🥦",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# Eat More Vegetables
 
 Try to include vegetables in breakfast, lunch, and dinner today.
 
@@ -211,7 +155,7 @@ Try to include vegetables in breakfast, lunch, and dinner today.
 - Include roasted vegetables with dinner
 
 ![Colorful Vegetables](https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800)`,
-            es: `# Come más vegetales
+          es: `# Come más vegetales
 
 Intenta incluir vegetales en el desayuno, almuerzo y cena hoy.
 
@@ -221,24 +165,21 @@ Intenta incluir vegetales en el desayuno, almuerzo y cena hoy.
 - Incluye vegetales asados con la cena
 
 ![Vegetales coloridos](https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800)`,
-          },
         },
-      ],
-      order: 2,
-    });
-
-    // Create Tasks for Move Experiments
-    const moveTask1 = await Task.create({
-      name: {
-        en: "Morning stretch routine",
-        es: "Rutina de estiramiento matutino",
       },
-      icon: "🤸",
-      blocks: [
-        {
-          type: "markdown",
-          content: {
-            en: `# Morning Stretches
+    ],
+  },
+  morningStretch: {
+    name: {
+      en: "Morning stretch routine",
+      es: "Rutina de estiramiento matutino",
+    },
+    icon: "🤸",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# Morning Stretches
 
 Start your day with a 10-minute stretch routine.
 
@@ -252,7 +193,7 @@ https://www.youtube.com/watch?v=g_tea8ZNk5A
 - Better circulation
 - Reduced morning stiffness
 - Improved mood`,
-            es: `# Estiramientos matutinos
+          es: `# Estiramientos matutinos
 
 Comienza tu día con una rutina de estiramiento de 10 minutos.
 
@@ -266,23 +207,21 @@ https://www.youtube.com/watch?v=g_tea8ZNk5A
 - Mejor circulación
 - Rigidez matutina reducida
 - Estado de ánimo mejorado`,
-          },
         },
-      ],
-      order: 1,
-    });
-
-    const moveTask2 = await Task.create({
-      name: {
-        en: "Take a 20-minute walk",
-        es: "Camina por 20 minutos",
       },
-      icon: "🚶",
-      blocks: [
-        {
-          type: "markdown",
-          content: {
-            en: `# Daily Walk
+    ],
+  },
+  takeWalk: {
+    name: {
+      en: "Take a 20-minute walk",
+      es: "Camina por 20 minutos",
+    },
+    icon: "🚶",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# Daily Walk
 
 Get outside and take a 20-minute walk today.
 
@@ -295,7 +234,7 @@ Get outside and take a 20-minute walk today.
 Fresh air and movement are great for both body and mind!
 
 ![Walking](https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800)`,
-            es: `# Caminata diaria
+          es: `# Caminata diaria
 
 Sal y camina por 20 minutos hoy.
 
@@ -308,161 +247,140 @@ Sal y camina por 20 minutos hoy.
 ¡El aire fresco y el movimiento son excelentes para el cuerpo y la mente!
 
 ![Caminando](https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800)`,
-          },
         },
-      ],
+      },
+    ],
+  },
+};
+
+async function seed() {
+  try {
+    await mongoose.connect(MONGODB_URI);
+    console.log("Connected to MongoDB");
+
+    // Clear existing data
+    await Promise.all([
+      Box.deleteMany({}),
+      Experiment.deleteMany({}),
+      JournalEntry.deleteMany({}),
+      Subscription.deleteMany({}),
+      TaskCompletion.deleteMany({}),
+    ]);
+    console.log("Cleared existing data");
+
+    // Create Boxes
+    const sleepBox = await Box.create({
+      name: { en: "Sleep", es: "Dormir" },
+      description: {
+        en: "Improve your sleep quality and establish better sleep habits",
+        es: "Mejora la calidad de tu sueño y establece mejores hábitos de sueño",
+      },
+      thumbnail: "🌙",
+      order: 1,
+    });
+
+    const eatBox = await Box.create({
+      name: { en: "Eat", es: "Comer" },
+      description: {
+        en: "Develop healthier eating habits and nutrition awareness",
+        es: "Desarrolla hábitos alimenticios más saludables y conciencia nutricional",
+      },
+      thumbnail: "🥗",
       order: 2,
     });
 
-    console.log("Created tasks");
-
-    // Create Experiments
-    const sleepExp1 = await Experiment.create({
-      name: {
-        en: "Better Sleep in 5 Days",
-        es: "Mejor sueño en 5 días",
+    const moveBox = await Box.create({
+      name: { en: "Move", es: "Moverse" },
+      description: {
+        en: "Build a sustainable exercise routine and stay active",
+        es: "Construye una rutina de ejercicio sostenible y mantente activo",
       },
+      thumbnail: "🏃",
+      order: 3,
+    });
+
+    console.log("Created boxes");
+
+    // Create Experiments with inlined tasks
+    const sleepExp1 = await Experiment.create({
+      name: { en: "Better Sleep in 5 Days", es: "Mejor sueño en 5 días" },
       description: {
         en: "Establish healthy sleep habits through consistent routines",
         es: "Establece hábitos de sueño saludables a través de rutinas consistentes",
       },
       boxId: sleepBox._id,
       days: [
-        {
-          dayNumber: 1,
-          tasks: [sleepTask1._id],
-        },
-        {
-          dayNumber: 2,
-          tasks: [sleepTask1._id, sleepTask2._id],
-        },
-        {
-          dayNumber: 3,
-          tasks: [sleepTask2._id],
-        },
-        {
-          dayNumber: 4,
-          tasks: [sleepTask1._id, sleepTask2._id],
-        },
-        {
-          dayNumber: 5,
-          tasks: [sleepTask2._id],
-        },
+        { dayNumber: 1, tasks: [tasks.setBedtime] },
+        { dayNumber: 2, tasks: [tasks.setBedtime, tasks.bedtimeRoutine] },
+        { dayNumber: 3, tasks: [tasks.bedtimeRoutine] },
+        { dayNumber: 4, tasks: [tasks.setBedtime, tasks.bedtimeRoutine] },
+        { dayNumber: 5, tasks: [tasks.bedtimeRoutine] },
       ],
     });
 
     const eatExp1 = await Experiment.create({
-      name: {
-        en: "Hydration Challenge",
-        es: "Desafío de hidratación",
-      },
+      name: { en: "Hydration Challenge", es: "Desafío de hidratación" },
       description: {
         en: "Build the habit of drinking enough water daily",
         es: "Construye el hábito de beber suficiente agua diariamente",
       },
       boxId: eatBox._id,
       days: [
-        {
-          dayNumber: 1,
-          tasks: [eatTask1._id],
-        },
-        {
-          dayNumber: 2,
-          tasks: [eatTask1._id],
-        },
-        {
-          dayNumber: 3,
-          tasks: [eatTask1._id],
-        },
-        {
-          dayNumber: 4,
-          tasks: [eatTask1._id],
-        },
-        {
-          dayNumber: 5,
-          tasks: [eatTask1._id],
-        },
+        { dayNumber: 1, tasks: [tasks.trackWater] },
+        { dayNumber: 2, tasks: [tasks.trackWater] },
+        { dayNumber: 3, tasks: [tasks.trackWater] },
+        { dayNumber: 4, tasks: [tasks.trackWater] },
+        { dayNumber: 5, tasks: [tasks.trackWater] },
       ],
     });
 
     const eatExp2 = await Experiment.create({
-      name: {
-        en: "Veggie Boost",
-        es: "Impulso vegetal",
-      },
+      name: { en: "Veggie Boost", es: "Impulso vegetal" },
       description: {
         en: "Increase your daily vegetable intake",
         es: "Aumenta tu consumo diario de vegetales",
       },
       boxId: eatBox._id,
       days: [
-        {
-          dayNumber: 1,
-          tasks: [eatTask2._id],
-        },
-        {
-          dayNumber: 2,
-          tasks: [eatTask2._id],
-        },
-        {
-          dayNumber: 3,
-          tasks: [eatTask2._id],
-        },
-        {
-          dayNumber: 4,
-          tasks: [eatTask2._id],
-        },
-        {
-          dayNumber: 5,
-          tasks: [eatTask2._id],
-        },
+        { dayNumber: 1, tasks: [tasks.addVegetables] },
+        { dayNumber: 2, tasks: [tasks.addVegetables] },
+        { dayNumber: 3, tasks: [tasks.addVegetables] },
+        { dayNumber: 4, tasks: [tasks.addVegetables] },
+        { dayNumber: 5, tasks: [tasks.addVegetables] },
       ],
     });
 
     const moveExp1 = await Experiment.create({
-      name: {
-        en: "Morning Movement",
-        es: "Movimiento matutino",
-      },
+      name: { en: "Morning Movement", es: "Movimiento matutino" },
       description: {
         en: "Start your day with energizing movement",
         es: "Comienza tu día con movimiento energizante",
       },
       boxId: moveBox._id,
       days: [
-        {
-          dayNumber: 1,
-          tasks: [moveTask1._id],
-        },
-        {
-          dayNumber: 2,
-          tasks: [moveTask1._id, moveTask2._id],
-        },
-        {
-          dayNumber: 3,
-          tasks: [moveTask1._id],
-        },
-        {
-          dayNumber: 4,
-          tasks: [moveTask2._id],
-        },
-        {
-          dayNumber: 5,
-          tasks: [moveTask1._id, moveTask2._id],
-        },
+        { dayNumber: 1, tasks: [tasks.morningStretch] },
+        { dayNumber: 2, tasks: [tasks.morningStretch, tasks.takeWalk] },
+        { dayNumber: 3, tasks: [tasks.morningStretch] },
+        { dayNumber: 4, tasks: [tasks.takeWalk] },
+        { dayNumber: 5, tasks: [tasks.morningStretch, tasks.takeWalk] },
       ],
     });
 
     console.log("Created experiments");
 
-    // Create mock journal entries for today
+    // Get task IDs from created experiments for journal entries and completions
+    const sleepTask1Id = sleepExp1.days[0].tasks[0]._id;
+    const eatTask1Id = eatExp1.days[0].tasks[0]._id;
+    const moveTask1Id = moveExp1.days[0].tasks[0]._id;
+
+    // Create mock journal entries
     const today = new Date();
     today.setHours(8, 0, 0, 0);
 
     await JournalEntry.create({
       userId: "demo-user",
       experimentId: sleepExp1._id,
-      taskId: sleepTask1._id,
+      taskId: sleepTask1Id,
       date: today,
       response:
         "I set my bedtime for 10:30 PM. Feeling optimistic about this!",
@@ -471,13 +389,72 @@ Sal y camina por 20 minutos hoy.
     await JournalEntry.create({
       userId: "demo-user",
       experimentId: eatExp1._id,
-      taskId: eatTask1._id,
-      date: new Date(today.getTime() + 2 * 60 * 60 * 1000), // 2 hours later
+      taskId: eatTask1Id,
+      date: new Date(today.getTime() + 2 * 60 * 60 * 1000),
       response: "Drank 5 glasses so far. Keeping my water bottle nearby.",
     });
 
     console.log("Created journal entries");
 
+    // Create subscriptions
+    await Subscription.create({
+      userId: "demo-user",
+      experimentId: sleepExp1._id,
+      status: "offered",
+      offeredAt: new Date(),
+    });
+
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+
+    const eatSub = await Subscription.create({
+      userId: "demo-user",
+      experimentId: eatExp1._id,
+      status: "started",
+      offeredAt: new Date(todayMidnight.getTime() - 24 * 60 * 60 * 1000),
+      startedAt: todayMidnight,
+    });
+
+    const twoDaysAgo = new Date(todayMidnight);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const moveSub = await Subscription.create({
+      userId: "demo-user",
+      experimentId: moveExp1._id,
+      status: "started",
+      offeredAt: new Date(twoDaysAgo.getTime() - 24 * 60 * 60 * 1000),
+      startedAt: twoDaysAgo,
+    });
+
+    await Subscription.create({
+      userId: "demo-user",
+      experimentId: eatExp2._id,
+      status: "offered",
+      offeredAt: new Date(),
+    });
+
+    console.log("Created subscriptions");
+
+    // Create task completions
+    await TaskCompletion.create({
+      userId: "demo-user",
+      subscriptionId: eatSub._id,
+      taskId: eatTask1Id,
+      dayNumber: 1,
+      completedAt: new Date(),
+    });
+
+    // For moveExp1 Day 3, get the task IDs from that day
+    const moveDay3Tasks = moveExp1.days[2].tasks; // Day 3 (index 2)
+    await TaskCompletion.create({
+      userId: "demo-user",
+      subscriptionId: moveSub._id,
+      taskId: moveDay3Tasks[0]._id,
+      dayNumber: 3,
+      completedAt: new Date(),
+    });
+
+    console.log("Created task completions");
     console.log("✅ Database seeded successfully!");
     process.exit(0);
   } catch (error) {

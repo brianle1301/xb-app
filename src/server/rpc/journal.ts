@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { connectDB } from "../db/connection";
 import { JournalEntry } from "../db/models";
+import { serialize } from "../db/serialize";
 
 export const getJournalEntriesByDate = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
@@ -22,6 +23,5 @@ export const getJournalEntriesByDate = createServerFn({ method: "POST" })
       .sort({ date: -1 })
       .lean();
 
-    return JSON.parse(JSON.stringify(entries));
-  },
-);
+    return serialize(entries);
+  });

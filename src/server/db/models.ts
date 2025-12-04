@@ -1,109 +1,52 @@
-import mongoose, { type Document, Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 // Supported languages
 export type Language = "en" | "es";
 
-// Localized text interface
-interface LocalizedText {
-  en: string;
-  es: string;
-}
+// Localized text schema (reusable)
+const localizedText = {
+  en: { type: String, required: true },
+  es: { type: String, required: true },
+} as const;
 
-// Content block types
-export interface ContentBlock {
-  type: "markdown";
-  content: LocalizedText;
-}
-
-// Task Document
-export interface ITask extends Document {
-  name: LocalizedText;
-  icon: string;
-  blocks: ContentBlock[];
-  order: number;
-}
-
-const TaskSchema = new Schema<ITask>({
-  name: {
-    en: { type: String, required: true },
-    es: { type: String, required: true },
-  },
-  icon: { type: String, required: true },
-  blocks: [
-    {
-      type: { type: String, enum: ["markdown"], required: true },
-      content: {
-        en: { type: String, required: true },
-        es: { type: String, required: true },
+// Task schema (embedded in Experiment days)
+const TaskSchema = new Schema(
+  {
+    name: localizedText,
+    icon: { type: String, required: true },
+    blocks: [
+      {
+        type: { type: String, enum: ["markdown"], required: true },
+        content: localizedText,
       },
-    },
-  ],
-  order: { type: Number, required: true },
-});
-
-// Day's tasks
-export interface IDay {
-  dayNumber: number;
-  tasks: mongoose.Types.ObjectId[];
-}
-
-// Experiment Document
-export interface IExperiment extends Document {
-  name: LocalizedText;
-  description: LocalizedText;
-  days: IDay[];
-  boxId: mongoose.Types.ObjectId;
-}
-
-const ExperimentSchema = new Schema<IExperiment>({
-  name: {
-    en: { type: String, required: true },
-    es: { type: String, required: true },
+    ],
   },
-  description: {
-    en: { type: String, required: true },
-    es: { type: String, required: true },
-  },
+  { _id: true },
+);
+
+// Experiment
+const ExperimentSchema = new Schema({
+  name: localizedText,
+  description: localizedText,
+  boxId: { type: Schema.Types.ObjectId, ref: "Box", required: true },
   days: [
     {
       dayNumber: { type: Number, required: true },
-      tasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
+      tasks: [TaskSchema],
     },
   ],
-  boxId: { type: Schema.Types.ObjectId, ref: "Box", required: true },
 });
 
-// Box Document
-export interface IBox extends Document {
-  name: LocalizedText;
-  description: LocalizedText;
-  thumbnail: string;
-  order: number;
-}
-
-const BoxSchema = new Schema<IBox>({
-  name: {
-    en: { type: String, required: true },
-    es: { type: String, required: true },
-  },
-  description: {
-    en: { type: String, required: true },
-    es: { type: String, required: true },
-  },
+// Box
+const BoxSchema = new Schema({
+  name: localizedText,
+  description: localizedText,
   thumbnail: { type: String, required: true },
   order: { type: Number, required: true },
 });
 
-// Journal Entry Document
-export interface IJournalEntry extends Document {
-  userId: string; // For now, just a string. In future, could be ObjectId
-  experimentId: mongoose.Types.ObjectId;
-  taskId: mongoose.Types.ObjectId;
-  date: Date;
-  response: string;
-}
-
-const JournalEntrySchema = new Schema<IJournalEntry>(
+// Subscription
+const SubscriptionSchema = new Schema(
   {
     userId: { type: String, required: true },
     experimentId: {
@@ -111,21 +54,72 @@ const JournalEntrySchema = new Schema<IJournalEntry>(
       ref: "Experiment",
       required: true,
     },
-    taskId: { type: Schema.Types.ObjectId, ref: "Task", required: true },
+    status: {
+      type: String,
+      enum: ["offered", "started", "completed", "abandoned"],
+      default: "offered",
+      required: true,
+    },
+    offeredAt: { type: Date, required: true, default: Date.now },
+    startedAt: { type: Date },
+    endedAt: { type: Date },
+  },
+  { timestamps: true },
+);
+
+// Compound index to ensure unique active subscription per user/experiment
+SubscriptionSchema.index(
+  { userId: 1, experimentId: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ["offered", "started"] } },
+  },
+);
+
+// Journal Entry
+const JournalEntrySchema = new Schema(
+  {
+    userId: { type: String, required: true },
+    experimentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Experiment",
+      required: true,
+    },
+    taskId: { type: Schema.Types.ObjectId, required: true },
     date: { type: Date, required: true },
     response: { type: String, required: true },
   },
   { timestamps: true },
 );
 
+// Task Completion - tracks when a user completes a task for a specific day
+const TaskCompletionSchema = new Schema(
+  {
+    userId: { type: String, required: true },
+    subscriptionId: {
+      type: Schema.Types.ObjectId,
+      ref: "Subscription",
+      required: true,
+    },
+    taskId: { type: Schema.Types.ObjectId, required: true },
+    dayNumber: { type: Number, required: true },
+    completedAt: { type: Date, required: true, default: Date.now },
+  },
+  { timestamps: true },
+);
+
+// Unique index: one completion per user/subscription/task/day
+TaskCompletionSchema.index(
+  { userId: 1, subscriptionId: 1, taskId: 1, dayNumber: 1 },
+  { unique: true },
+);
+
 // Export models
-export const Task =
-  mongoose.models.Task || mongoose.model<ITask>("Task", TaskSchema);
-export const Experiment =
-  mongoose.models.Experiment ||
-  mongoose.model<IExperiment>("Experiment", ExperimentSchema);
-export const Box =
-  mongoose.models.Box || mongoose.model<IBox>("Box", BoxSchema);
-export const JournalEntry =
-  mongoose.models.JournalEntry ||
-  mongoose.model<IJournalEntry>("JournalEntry", JournalEntrySchema);
+export const Experiment = mongoose.model("Experiment", ExperimentSchema);
+export const Box = mongoose.model("Box", BoxSchema);
+export const Subscription = mongoose.model("Subscription", SubscriptionSchema);
+export const JournalEntry = mongoose.model("JournalEntry", JournalEntrySchema);
+export const TaskCompletion = mongoose.model(
+  "TaskCompletion",
+  TaskCompletionSchema,
+);
