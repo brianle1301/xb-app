@@ -1,9 +1,8 @@
-import { createServerOnlyFn } from "@tanstack/react-start";
 import mongoose from "mongoose";
 
 let isConnected = false;
 
-export const connectDB = createServerOnlyFn(() => {
+export async function connectDB() {
   const MONGODB_URI = process.env.MONGODB_URI;
 
   if (!MONGODB_URI) {
@@ -12,18 +11,16 @@ export const connectDB = createServerOnlyFn(() => {
     );
   }
 
-  return async () => {
-    if (isConnected) {
-      return;
-    }
+  if (isConnected) {
+    return;
+  }
 
-    try {
-      await mongoose.connect(MONGODB_URI);
-      isConnected = true;
-      console.log("MongoDB connected successfully");
-    } catch (error) {
-      console.error("MongoDB connection error:", error);
-      throw new Error("Failed to connect to MongoDB");
-    }
-  };
-});
+  try {
+    await mongoose.connect(MONGODB_URI);
+    isConnected = true;
+    console.log("MongoDB connected successfully");
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    throw new Error("Failed to connect to MongoDB");
+  }
+}

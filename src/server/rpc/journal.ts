@@ -6,7 +6,7 @@ import { JournalEntry } from "../db/models";
 export const getJournalEntriesByDate = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: dateStr }) => {
-    await connectDB()();
+    await connectDB();
     const date = new Date(dateStr);
     const startOfDay = new Date(date.setHours(0, 0, 0, 0));
     const endOfDay = new Date(date.setHours(23, 59, 59, 999));

@@ -5,7 +5,7 @@ import { Box } from "../db/models";
 
 export const listBoxes = createServerFn({ method: "GET" }).handler(
   async () => {
-    await connectDB()();
+    await connectDB();
     const boxes = await Box.find().sort({ order: 1 }).lean();
     return JSON.parse(JSON.stringify(boxes));
   },

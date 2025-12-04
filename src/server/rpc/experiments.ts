@@ -6,7 +6,7 @@ import { Experiment, Task } from "../db/models";
 export const listExperimentsByBox = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: boxId }) => {
-    await connectDB()();
+    await connectDB();
     const experiments = await Experiment.find({ boxId }).lean();
     return JSON.parse(JSON.stringify(experiments));
   });
@@ -14,7 +14,7 @@ export const listExperimentsByBox = createServerFn({ method: "POST" })
 export const getExperimentWithTasks = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: experimentId }) => {
-    await connectDB()();
+    await connectDB();
     const experiment = await Experiment.findById(experimentId).lean();
     if (!experiment) {
       throw new Error("Experiment not found");
@@ -35,7 +35,7 @@ export const getExperimentWithTasks = createServerFn({ method: "POST" })
 
 export const listAllExperiments = createServerFn({ method: "GET" }).handler(
   async () => {
-    await connectDB()();
+    await connectDB();
     const experiments = await Experiment.find().lean();
     return JSON.parse(JSON.stringify(experiments));
   },
@@ -44,7 +44,7 @@ export const listAllExperiments = createServerFn({ method: "GET" }).handler(
 // Get all first day tasks for all experiments (for Today tab)
 export const getTodayTasks = createServerFn({ method: "GET" }).handler(
   async () => {
-    await connectDB()();
+    await connectDB();
     const experiments = await Experiment.find().populate("boxId").lean();
 
     const tasksGroupedByExperiment = await Promise.all(
