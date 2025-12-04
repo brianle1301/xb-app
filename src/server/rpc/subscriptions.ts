@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { connectDB } from "../db/connection";
 import { Experiment, Subscription } from "../db/models";
 import { serialize } from "../db/serialize";
 
@@ -12,7 +11,7 @@ function getStartOfDay(date: Date = new Date()): Date {
 }
 
 // Helper to calculate current day number for a subscription
-export function calculateCurrentDay(startedAt: Date): number {
+function calculateCurrentDay(startedAt: Date): number {
   const now = getStartOfDay();
   const start = getStartOfDay(startedAt);
   const diffTime = now.getTime() - start.getTime();
@@ -24,8 +23,6 @@ export function calculateCurrentDay(startedAt: Date): number {
 export const getUserSubscriptions = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: userId }) => {
-    await connectDB();
-
     const subscriptions = await Subscription.find({
       userId,
       status: { $in: ["offered", "started"] },
@@ -65,8 +62,6 @@ export const getUserSubscriptions = createServerFn({ method: "POST" })
 export const startSubscription = createServerFn({ method: "POST" })
   .inputValidator((data: { subscriptionId: string }) => data)
   .handler(async ({ data: { subscriptionId } }) => {
-    await connectDB();
-
     const startedAt = getStartOfDay();
 
     const subscription = await Subscription.findOneAndUpdate(
@@ -86,8 +81,6 @@ export const startSubscription = createServerFn({ method: "POST" })
 export const abandonSubscription = createServerFn({ method: "POST" })
   .inputValidator((data: { subscriptionId: string }) => data)
   .handler(async ({ data: { subscriptionId } }) => {
-    await connectDB();
-
     const subscription = await Subscription.findOneAndUpdate(
       { _id: subscriptionId, status: "started" },
       { status: "abandoned", endedAt: new Date() },
@@ -105,8 +98,6 @@ export const abandonSubscription = createServerFn({ method: "POST" })
 export const getTodayTasksForUser = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: userId }) => {
-    await connectDB();
-
     // Get all started subscriptions for the user with populated experiment
     const subscriptions = await Subscription.find({
       userId,
@@ -157,8 +148,6 @@ export const getTodayTasksForUser = createServerFn({ method: "POST" })
 export const offerExperimentToUser = createServerFn({ method: "POST" })
   .inputValidator((data: { userId: string; experimentId: string }) => data)
   .handler(async ({ data: { userId, experimentId } }) => {
-    await connectDB();
-
     // Check if there's already an active subscription
     const existing = await Subscription.findOne({
       userId,
@@ -187,8 +176,6 @@ export const offerExperimentToUser = createServerFn({ method: "POST" })
 export const offerAllExperimentsToUser = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: userId }) => {
-    await connectDB();
-
     const experiments = await Experiment.find().lean();
 
     const subscriptionIds = await Promise.all(

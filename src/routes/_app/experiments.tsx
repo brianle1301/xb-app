@@ -24,6 +24,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/lib/auth-context";
 import { getLocalized, useLanguage } from "@/lib/language-context";
 import { listBoxes } from "@/server/rpc/boxes";
 import { listExperimentsByBox } from "@/server/rpc/experiments";
@@ -31,9 +32,6 @@ import {
   getUserSubscriptions,
   startSubscription,
 } from "@/server/rpc/subscriptions";
-
-// Hardcoded for now - in a real app this would come from auth
-const DEMO_USER_ID = "demo-user";
 
 export const Route = createFileRoute("/_app/experiments")({
   component: ExperimentsPage,
@@ -46,6 +44,8 @@ export const Route = createFileRoute("/_app/experiments")({
 
 function ExperimentsPage() {
   const { language } = useLanguage();
+  const { user } = useAuth();
+  const userId = user!.id;
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
 
   const { data: boxes } = useSuspenseQuery({
@@ -54,8 +54,8 @@ function ExperimentsPage() {
   });
 
   const { data: subscriptions } = useSuspenseQuery({
-    queryKey: ["subscriptions", DEMO_USER_ID],
-    queryFn: () => getUserSubscriptions({ data: DEMO_USER_ID }),
+    queryKey: ["subscriptions", userId],
+    queryFn: () => getUserSubscriptions({ data: userId }),
   });
 
   // Create a map for quick lookup

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/lib/auth-context";
 import { getLocalized, useLanguage } from "@/lib/language-context";
 import { getJournalEntriesByDate } from "@/server/rpc/journal";
 
@@ -19,13 +20,15 @@ export const Route = createFileRoute("/_app/journal")({
 
 function JournalPage() {
   const { language } = useLanguage();
+  const { user } = useAuth();
+  const userId = user!.id;
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0],
   );
 
   const { data: entries } = useSuspenseQuery({
-    queryKey: ["journal", selectedDate],
-    queryFn: () => getJournalEntriesByDate({ data: selectedDate }),
+    queryKey: ["journal", userId, selectedDate],
+    queryFn: () => getJournalEntriesByDate({ data: { userId, date: selectedDate } }),
   });
 
   const formatDate = (dateStr: string) => {

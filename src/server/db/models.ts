@@ -114,6 +114,13 @@ TaskCompletionSchema.index(
   { unique: true },
 );
 
+// Clear existing models for HMR compatibility
+delete mongoose.models.Experiment;
+delete mongoose.models.Box;
+delete mongoose.models.Subscription;
+delete mongoose.models.JournalEntry;
+delete mongoose.models.TaskCompletion;
+
 // Export models
 export const Experiment = mongoose.model("Experiment", ExperimentSchema);
 export const Box = mongoose.model("Box", BoxSchema);

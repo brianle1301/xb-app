@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { connectDB } from "../db/connection";
 import { TaskCompletion } from "../db/models";
 import { serialize } from "../db/serialize";
 
@@ -15,8 +14,6 @@ export const completeTask = createServerFn({ method: "POST" })
     }) => data,
   )
   .handler(async ({ data }) => {
-    await connectDB();
-
     const completion = await TaskCompletion.findOneAndUpdate(
       {
         userId: data.userId,
@@ -48,8 +45,6 @@ export const uncompleteTask = createServerFn({ method: "POST" })
     }) => data,
   )
   .handler(async ({ data }) => {
-    await connectDB();
-
     await TaskCompletion.deleteOne({
       userId: data.userId,
       subscriptionId: data.subscriptionId,
@@ -67,8 +62,6 @@ export const getCompletionsForDay = createServerFn({ method: "POST" })
       data,
   )
   .handler(async ({ data }) => {
-    await connectDB();
-
     const completions = await TaskCompletion.find({
       userId: data.userId,
       subscriptionId: data.subscriptionId,
@@ -82,8 +75,6 @@ export const getCompletionsForDay = createServerFn({ method: "POST" })
 export const getTodayCompletions = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: userId }) => {
-    await connectDB();
-
     // Get today's completions (we'll filter by dayNumber on the client since
     // each subscription may have a different current day)
     const completions = await TaskCompletion.find({ userId }).lean();

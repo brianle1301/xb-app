@@ -1,3 +1,4 @@
+import { createServerOnlyFn } from "@tanstack/react-start";
 import type { Types } from "mongoose";
 
 /**
@@ -20,6 +21,6 @@ type Serialized<T> = T extends Types.ObjectId
  * Serializes Mongoose documents for RPC transport.
  * Converts ObjectIds and Dates to JSON-safe formats.
  */
-export function serialize<T>(doc: T): Serialized<T> {
+export const serialize = createServerOnlyFn(<T>(doc: T): Serialized<T> => {
   return JSON.parse(JSON.stringify(doc));
-}
+});

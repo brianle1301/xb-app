@@ -4,7 +4,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ChevronRight, Circle, FlaskConical } from "lucide-react";
+import { Check, ChevronRight, FlaskConical, Undo2 } from "lucide-react";
 import { useState } from "react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
@@ -25,6 +25,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/lib/auth-context";
 import { getLocalized, useLanguage } from "@/lib/language-context";
 import {
   completeTask,
@@ -32,9 +33,6 @@ import {
   uncompleteTask,
 } from "@/server/rpc/completions";
 import { getTodayTasksForUser } from "@/server/rpc/subscriptions";
-
-// Hardcoded for now - in a real app this would come from auth
-const DEMO_USER_ID = "demo-user";
 
 export const Route = createFileRoute("/_app/today")({
   component: TodayPage,
@@ -47,6 +45,8 @@ export const Route = createFileRoute("/_app/today")({
 
 function TodayPage() {
   const { language } = useLanguage();
+  const { user } = useAuth();
+  const userId = user!.id;
   const queryClient = useQueryClient();
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<
@@ -57,13 +57,13 @@ function TodayPage() {
   );
 
   const { data: todayData } = useSuspenseQuery({
-    queryKey: ["today-tasks", DEMO_USER_ID],
-    queryFn: () => getTodayTasksForUser({ data: DEMO_USER_ID }),
+    queryKey: ["today-tasks", userId],
+    queryFn: () => getTodayTasksForUser({ data: userId }),
   });
 
   const { data: completions } = useSuspenseQuery({
-    queryKey: ["completions", DEMO_USER_ID],
-    queryFn: () => getTodayCompletions({ data: DEMO_USER_ID }),
+    queryKey: ["completions", userId],
+    queryFn: () => getTodayCompletions({ data: userId }),
   });
 
   const completeMutation = useMutation({
@@ -92,27 +92,6 @@ function TodayPage() {
     taskId: string,
     dayNumber: number,
   ) => completedTaskKeys.has(`${subscriptionId}-${taskId}-${dayNumber}`);
-
-  const handleToggleComplete = (
-    e: React.MouseEvent,
-    subscriptionId: string,
-    taskId: string,
-    dayNumber: number,
-  ) => {
-    e.stopPropagation();
-    const data = {
-      userId: DEMO_USER_ID,
-      subscriptionId,
-      taskId,
-      dayNumber,
-    };
-
-    if (isTaskCompleted(subscriptionId, taskId, dayNumber)) {
-      uncompleteMutation.mutate({ data });
-    } else {
-      completeMutation.mutate({ data });
-    }
-  };
 
   const filteredTodayData = todayData?.filter((group) => group !== null) || [];
 
@@ -184,59 +163,31 @@ function TodayPage() {
                     );
 
                     return (
-                      <div
+                      <button
                         key={task._id}
-                        className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                        onClick={() => {
+                          setSelectedTask(task);
+                          setSelectedSubscriptionId(subscriptionId);
+                          setSelectedDayNumber(currentDay);
+                        }}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
                           completed ? "bg-muted/50" : "hover:bg-muted"
                         }`}
                       >
-                        <button
-                          onClick={(e) =>
-                            handleToggleComplete(
-                              e,
-                              subscriptionId,
-                              task._id,
-                              currentDay,
-                            )
-                          }
-                          className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                            completed
-                              ? "bg-primary border-primary text-primary-foreground"
-                              : "border-muted-foreground/30 hover:border-primary"
-                          }`}
-                          disabled={
-                            completeMutation.isPending ||
-                            uncompleteMutation.isPending
-                          }
+                        {completed ? (
+                          <Check className="w-6 h-6 text-green-500 flex-shrink-0" />
+                        ) : (
+                          <span className="text-2xl flex-shrink-0">
+                            {task.icon}
+                          </span>
+                        )}
+                        <span
+                          className={`flex-1 font-medium ${completed ? "line-through text-muted-foreground" : ""}`}
                         >
-                          {completed ? (
-                            <Check className="w-4 h-4" />
-                          ) : (
-                            <Circle className="w-4 h-4 opacity-0" />
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setSelectedTask(task);
-                            setSelectedSubscriptionId(subscriptionId);
-                            setSelectedDayNumber(currentDay);
-                          }}
-                          className={`flex-1 flex items-center justify-between text-left ${
-                            completed ? "opacity-60" : ""
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl">{task.icon}</span>
-                            <span
-                              className={`font-medium ${completed ? "line-through" : ""}`}
-                            >
-                              {getLocalized(task.name, language)}
-                            </span>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                        </button>
-                      </div>
+                          {getLocalized(task.name, language)}
+                        </span>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                      </button>
                     );
                   })}
                 </div>
@@ -261,15 +212,20 @@ function TodayPage() {
             <>
               <DrawerHeader>
                 <DrawerTitle className="flex items-center gap-2">
-                  <span className="text-2xl">{selectedTask.icon}</span>
+                  {selectedTaskCompleted ? (
+                    <Check className="w-6 h-6 text-green-500" />
+                  ) : (
+                    <span className="text-2xl">{selectedTask.icon}</span>
+                  )}
                   <span
-                    className={selectedTaskCompleted ? "line-through" : ""}
+                    className={
+                      selectedTaskCompleted
+                        ? "line-through text-muted-foreground"
+                        : ""
+                    }
                   >
                     {getLocalized(selectedTask.name, language)}
                   </span>
-                  {selectedTaskCompleted && (
-                    <Check className="w-5 h-5 text-primary" />
-                  )}
                 </DrawerTitle>
               </DrawerHeader>
               <div className="px-4 pb-8">
@@ -287,7 +243,7 @@ function TodayPage() {
                     className="flex-1"
                     onClick={() => {
                       const data = {
-                        userId: DEMO_USER_ID,
+                        userId,
                         subscriptionId: selectedSubscriptionId,
                         taskId: selectedTask._id,
                         dayNumber: selectedDayNumber,
@@ -304,7 +260,7 @@ function TodayPage() {
                   >
                     {selectedTaskCompleted ? (
                       <>
-                        <Circle className="w-4 h-4 mr-2" />
+                        <Undo2 className="w-4 h-4 mr-2" />
                         Mark Incomplete
                       </>
                     ) : (
