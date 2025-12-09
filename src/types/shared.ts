@@ -51,6 +51,18 @@ export interface SelectBlock {
 
 export type Block = MarkdownBlock | InputBlock | SelectBlock;
 
+// Content-only block (no inputs) for overviews
+export type ContentBlock = MarkdownBlock;
+
+// ============ Overview ============
+
+export interface Overview {
+  _id: string;
+  title: LocalizedText;
+  thumbnail: string;
+  blocks?: ContentBlock[];
+}
+
 // ============ Task ============
 
 export interface Task {

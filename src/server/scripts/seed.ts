@@ -3,6 +3,242 @@ import { MongoClient } from "mongodb";
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/xb-app";
 
+// Reusable overview definitions
+const overviews = {
+  sleepScience: {
+    title: {
+      en: "The Science of Sleep",
+      es: "La ciencia del sueño",
+    },
+    thumbnail: "🧠",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# The Science of Sleep
+
+Sleep is one of the most important factors in your overall health and well-being.
+
+## Why Sleep Matters
+
+During sleep, your body:
+- Repairs muscles and tissues
+- Consolidates memories
+- Releases important hormones
+- Strengthens the immune system
+
+## The Sleep Cycle
+
+A complete sleep cycle lasts about 90 minutes and includes:
+1. **Light Sleep (N1)** - The transition from wakefulness
+2. **Light Sleep (N2)** - Body temperature drops, heart rate slows
+3. **Deep Sleep (N3)** - The most restorative stage
+4. **REM Sleep** - When most dreaming occurs
+
+![Sleep Cycles](https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=800)
+
+Most adults need 7-9 hours of sleep per night to complete 4-6 full cycles.`,
+          es: `# La ciencia del sueño
+
+El sueño es uno de los factores más importantes para tu salud y bienestar general.
+
+## Por qué el sueño importa
+
+Durante el sueño, tu cuerpo:
+- Repara músculos y tejidos
+- Consolida memorias
+- Libera hormonas importantes
+- Fortalece el sistema inmunológico
+
+## El ciclo del sueño
+
+Un ciclo de sueño completo dura aproximadamente 90 minutos e incluye:
+1. **Sueño ligero (N1)** - La transición desde la vigilia
+2. **Sueño ligero (N2)** - La temperatura corporal baja, el ritmo cardíaco disminuye
+3. **Sueño profundo (N3)** - La etapa más restauradora
+4. **Sueño REM** - Cuando ocurren la mayoría de los sueños
+
+![Ciclos del sueño](https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=800)
+
+La mayoría de los adultos necesitan 7-9 horas de sueño por noche para completar 4-6 ciclos completos.`,
+        },
+      },
+    ],
+  },
+  sleepTips: {
+    title: {
+      en: "Sleep Hygiene Tips",
+      es: "Consejos de higiene del sueño",
+    },
+    thumbnail: "💡",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# Sleep Hygiene Tips
+
+Good sleep hygiene can dramatically improve your sleep quality.
+
+## Environment
+- Keep your bedroom cool (65-68°F / 18-20°C)
+- Use blackout curtains or an eye mask
+- Consider white noise or earplugs
+
+## Before Bed
+- Avoid screens 1 hour before sleep
+- No caffeine after 2pm
+- Limit alcohol consumption
+
+## Daily Habits
+- Get morning sunlight exposure
+- Exercise regularly (but not too close to bedtime)
+- Maintain consistent sleep/wake times`,
+          es: `# Consejos de higiene del sueño
+
+Una buena higiene del sueño puede mejorar dramáticamente la calidad de tu sueño.
+
+## Ambiente
+- Mantén tu habitación fresca (18-20°C)
+- Usa cortinas opacas o un antifaz
+- Considera ruido blanco o tapones para los oídos
+
+## Antes de dormir
+- Evita pantallas 1 hora antes de dormir
+- Sin cafeína después de las 2pm
+- Limita el consumo de alcohol
+
+## Hábitos diarios
+- Exponte a la luz solar por la mañana
+- Haz ejercicio regularmente (pero no muy cerca de la hora de dormir)
+- Mantén horarios consistentes de sueño/vigilia`,
+        },
+      },
+    ],
+  },
+  hydrationBenefits: {
+    title: {
+      en: "Benefits of Hydration",
+      es: "Beneficios de la hidratación",
+    },
+    thumbnail: "💧",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# Why Hydration Matters
+
+Water is essential for nearly every function in your body.
+
+## Key Benefits
+- **Energy**: Even mild dehydration can cause fatigue
+- **Brain Function**: Proper hydration improves focus and concentration
+- **Digestion**: Water helps break down food and absorb nutrients
+- **Skin Health**: Hydration keeps skin elastic and glowing
+- **Joint Health**: Water lubricates and cushions joints
+
+## How Much Water?
+
+A general guideline is 8 glasses (64 oz / 2 liters) per day, but needs vary based on:
+- Activity level
+- Climate
+- Body size
+- Overall health
+
+![Water](https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=800)`,
+          es: `# Por qué importa la hidratación
+
+El agua es esencial para casi todas las funciones de tu cuerpo.
+
+## Beneficios clave
+- **Energía**: Incluso la deshidratación leve puede causar fatiga
+- **Función cerebral**: La hidratación adecuada mejora el enfoque y la concentración
+- **Digestión**: El agua ayuda a descomponer los alimentos y absorber nutrientes
+- **Salud de la piel**: La hidratación mantiene la piel elástica y brillante
+- **Salud articular**: El agua lubrica y amortigua las articulaciones
+
+## ¿Cuánta agua?
+
+Una guía general es 8 vasos (2 litros) por día, pero las necesidades varían según:
+- Nivel de actividad
+- Clima
+- Tamaño corporal
+- Salud general
+
+![Agua](https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=800)`,
+        },
+      },
+    ],
+  },
+  movementBenefits: {
+    title: {
+      en: "Why Movement Matters",
+      es: "Por qué el movimiento importa",
+    },
+    thumbnail: "🏃",
+    blocks: [
+      {
+        type: "markdown" as const,
+        content: {
+          en: `# The Power of Daily Movement
+
+Regular physical activity is one of the best things you can do for your health.
+
+## Physical Benefits
+- Strengthens heart and lungs
+- Builds and maintains muscle
+- Improves flexibility and balance
+- Supports healthy weight
+
+## Mental Benefits
+- Reduces stress and anxiety
+- Improves mood through endorphin release
+- Enhances cognitive function
+- Promotes better sleep
+
+## Getting Started
+
+You don't need intense workouts to see benefits. Simple activities like:
+- Walking
+- Stretching
+- Dancing
+- Gardening
+
+Can all contribute to better health!
+
+![Exercise](https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800)`,
+          es: `# El poder del movimiento diario
+
+La actividad física regular es una de las mejores cosas que puedes hacer por tu salud.
+
+## Beneficios físicos
+- Fortalece el corazón y los pulmones
+- Construye y mantiene músculo
+- Mejora la flexibilidad y el equilibrio
+- Apoya un peso saludable
+
+## Beneficios mentales
+- Reduce el estrés y la ansiedad
+- Mejora el estado de ánimo mediante la liberación de endorfinas
+- Mejora la función cognitiva
+- Promueve un mejor sueño
+
+## Cómo empezar
+
+No necesitas entrenamientos intensos para ver beneficios. Actividades simples como:
+- Caminar
+- Estirar
+- Bailar
+- Jardinería
+
+¡Todas pueden contribuir a una mejor salud!
+
+![Ejercicio](https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800)`,
+        },
+      },
+    ],
+  },
+};
+
 // Reusable task definitions
 const tasks = {
   setBedtime: {
@@ -342,6 +578,7 @@ async function seed() {
         es: "Establece hábitos de sueño saludables a través de rutinas consistentes",
       },
       boxId: sleepBoxResult.insertedId,
+      overviews: [overviews.sleepScience, overviews.sleepTips],
       days: [
         { dayNumber: 1, tasks: [tasks.setBedtime] },
         { dayNumber: 2, tasks: [tasks.setBedtime, tasks.bedtimeRoutine] },
@@ -358,6 +595,7 @@ async function seed() {
         es: "Construye el hábito de beber suficiente agua diariamente",
       },
       boxId: eatBoxResult.insertedId,
+      overviews: [overviews.hydrationBenefits],
       days: [
         { dayNumber: 1, tasks: [tasks.trackWater] },
         { dayNumber: 2, tasks: [tasks.trackWater] },
@@ -390,6 +628,7 @@ async function seed() {
         es: "Comienza tu día con movimiento energizante",
       },
       boxId: moveBoxResult.insertedId,
+      overviews: [overviews.movementBenefits],
       days: [
         { dayNumber: 1, tasks: [tasks.morningStretch] },
         { dayNumber: 2, tasks: [tasks.morningStretch, tasks.takeWalk] },

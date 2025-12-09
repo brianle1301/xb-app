@@ -47,7 +47,7 @@ import {
   getUserSubscriptions,
   startSubscription,
 } from "@/server/rpc/subscriptions";
-import type { Block, Task } from "@/types/shared";
+import type { Block, Overview, Task } from "@/types/shared";
 
 export const Route = createFileRoute("/_app/boxes/$boxId/experiments")({
   component: BoxExperimentsPage,
@@ -65,6 +65,9 @@ function BoxExperimentsPage() {
   const userId = user!.id;
   const queryClient = useQueryClient();
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
+  const [selectedOverview, setSelectedOverview] = React.useState<Overview | null>(
+    null,
+  );
   const [selectedSubscriptionId, setSelectedSubscriptionId] = React.useState<
     string | null
   >(null);
@@ -225,6 +228,31 @@ function BoxExperimentsPage() {
                       {getLocalized(experiment.description, language)}
                     </p>
 
+                    {experiment.overviews && experiment.overviews.length > 0 && (
+                      <>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {language === "es" ? "Información:" : "Learn More:"}
+                        </p>
+                        <div className="space-y-2 mb-4">
+                          {experiment.overviews.map((overview) => (
+                            <button
+                              key={overview._id}
+                              onClick={() => setSelectedOverview(overview)}
+                              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-xl">{overview.thumbnail}</span>
+                                <span className="font-medium">
+                                  {getLocalized(overview.title, language)}
+                                </span>
+                              </div>
+                              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
                     {status === "offered" && subscription && (
                       <Button
                         className="w-full mb-4"
@@ -325,6 +353,7 @@ function BoxExperimentsPage() {
         })}
       </div>
 
+      {/* Task Drawer */}
       <Drawer
         open={!!selectedTask}
         onOpenChange={(open) => {
@@ -528,6 +557,44 @@ function BoxExperimentsPage() {
                     variant={selectedSubscriptionId ? "outline" : "default"}
                     className="flex-1"
                   >
+                    Close
+                  </Button>
+                </DrawerClose>
+              </div>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
+
+      {/* Overview Drawer */}
+      <Drawer
+        open={!!selectedOverview}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedOverview(null);
+          }
+        }}
+      >
+        <DrawerContent className="max-h-[85vh]">
+          {selectedOverview && (
+            <>
+              <DrawerHeader>
+                <DrawerTitle className="flex items-center gap-2">
+                  <span className="text-2xl">{selectedOverview.thumbnail}</span>
+                  <span>{getLocalized(selectedOverview.title, language)}</span>
+                </DrawerTitle>
+              </DrawerHeader>
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {selectedOverview.blocks?.map((block, index) => (
+                  <MarkdownRenderer
+                    key={index}
+                    content={getLocalized(block.content, language)}
+                  />
+                ))}
+              </div>
+              <div className="p-4 border-t bg-background">
+                <DrawerClose asChild>
+                  <Button variant="default" className="w-full">
                     Close
                   </Button>
                 </DrawerClose>

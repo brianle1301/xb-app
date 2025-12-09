@@ -1,14 +1,24 @@
 import { createServerFn } from "@tanstack/react-start";
 import { ObjectId } from "mongodb";
 
-import type { Block, ExperimentDay, LocalizedText, SelectOption, Task } from "@/types/shared";
+import type {
+  Block,
+  ContentBlock,
+  ExperimentDay,
+  LocalizedText,
+  Overview,
+  SelectOption,
+  Task,
+} from "@/types/shared";
 
 import { getBoxes, getExperiments } from "../db/client";
 import type {
   BlockDoc,
+  ContentBlockDoc,
   ExperimentDayDoc,
   ExperimentDoc,
   ExperimentWithBoxDoc,
+  OverviewDoc,
   SelectOptionDoc,
   TaskDoc,
 } from "../db/types";
@@ -21,6 +31,7 @@ export interface Experiment {
   name: LocalizedText;
   description: LocalizedText;
   boxId: string;
+  overviews?: Overview[];
   days: ExperimentDay[];
 }
 
@@ -38,6 +49,28 @@ function serializeSelectOption(doc: SelectOptionDoc): SelectOption {
       en: doc.label.en,
       es: doc.label.es,
     },
+  };
+}
+
+function serializeContentBlock(doc: ContentBlockDoc): ContentBlock {
+  return {
+    type: "markdown",
+    content: {
+      en: doc.content?.en,
+      es: doc.content?.es,
+    },
+  };
+}
+
+function serializeOverview(doc: OverviewDoc): Overview {
+  return {
+    _id: doc._id!.toString(),
+    title: {
+      en: doc.title.en,
+      es: doc.title.es,
+    },
+    thumbnail: doc.thumbnail,
+    blocks: doc.blocks?.map(serializeContentBlock),
   };
 }
 
@@ -118,6 +151,7 @@ export function serializeExperiment(doc: ExperimentDoc): Experiment {
       es: doc.description.es,
     },
     boxId: doc.boxId.toString(),
+    overviews: doc.overviews?.map(serializeOverview),
     days: doc.days.map(serializeExperimentDay),
   };
 }
@@ -134,6 +168,7 @@ export function serializeExperimentWithBox(doc: ExperimentWithBoxDoc): Experimen
       es: doc.description.es,
     },
     boxId: serializeBox(doc.boxId),
+    overviews: doc.overviews?.map(serializeOverview),
     days: doc.days.map(serializeExperimentDay),
   };
 }

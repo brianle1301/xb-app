@@ -35,6 +35,19 @@ export interface TaskDoc {
   blocks?: BlockDoc[];
 }
 
+// Content-only block for overviews (only markdown)
+export interface ContentBlockDoc {
+  type: "markdown";
+  content?: { en?: string; es?: string };
+}
+
+export interface OverviewDoc {
+  _id?: ObjectId;
+  title: LocalizedText;
+  thumbnail: string;
+  blocks?: ContentBlockDoc[];
+}
+
 export interface ExperimentDayDoc {
   dayNumber: number;
   tasks: TaskDoc[];
@@ -53,6 +66,7 @@ export interface ExperimentDoc {
   name: LocalizedText;
   description: LocalizedText;
   boxId: ObjectId;
+  overviews?: OverviewDoc[];
   days: ExperimentDayDoc[];
 }
 
