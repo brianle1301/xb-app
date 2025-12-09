@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { Language } from "@/server/db/models";
+import type { Language } from "@/types/shared";
 
 interface LanguageContextType {
   language: Language;
@@ -37,7 +37,7 @@ export function useLanguage() {
 
 // Utility function to get localized text
 export function getLocalized(
-  text: { en: string; es: string } | null | undefined,
+  text: { en?: string; es?: string } | null | undefined,
   language: Language,
 ): string {
   return text?.[language] ?? "";

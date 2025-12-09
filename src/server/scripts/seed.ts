@@ -97,6 +97,20 @@ Una rutina constante antes de dormir señala a tu cuerpo que es hora de descansa
 ¡Evita las pantallas al menos 30 minutos antes de dormir!`,
         },
       },
+      {
+        type: "input" as const,
+        id: "activities",
+        inputType: "textarea",
+        label: {
+          en: "What activities did you do tonight?",
+          es: "¿Qué actividades hiciste esta noche?",
+        },
+        placeholder: {
+          en: "e.g., Read for 20 minutes, did 10 minutes of stretching...",
+          es: "ej., Leí por 20 minutos, hice 10 minutos de estiramiento...",
+        },
+        required: false,
+      },
     ],
   },
   trackWater: {
@@ -132,6 +146,26 @@ Intenta beber al menos 8 vasos de agua hoy.
 
 ¡Mantén una botella de agua contigo durante el día!`,
         },
+      },
+      {
+        type: "select" as const,
+        id: "glasses",
+        label: {
+          en: "How many glasses did you drink today?",
+          es: "¿Cuántos vasos bebiste hoy?",
+        },
+        helpText: {
+          en: "1 glass = approximately 250ml",
+          es: "1 vaso = aproximadamente 250ml",
+        },
+        required: true,
+        options: [
+          { value: "1-2", label: { en: "1-2 glasses", es: "1-2 vasos" } },
+          { value: "3-4", label: { en: "3-4 glasses", es: "3-4 vasos" } },
+          { value: "5-6", label: { en: "5-6 glasses", es: "5-6 vasos" } },
+          { value: "7-8", label: { en: "7-8 glasses", es: "7-8 vasos" } },
+          { value: "8+", label: { en: "8+ glasses", es: "8+ vasos" } },
+        ],
       },
     ],
   },

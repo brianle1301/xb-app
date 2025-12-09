@@ -24,7 +24,17 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import { getLocalized, useLanguage } from "@/lib/language-context";
 import {
@@ -33,6 +43,7 @@ import {
   uncompleteTask,
 } from "@/server/rpc/completions";
 import { getTodayTasksForUser } from "@/server/rpc/subscriptions";
+import type { Block, Task } from "@/types/shared";
 
 export const Route = createFileRoute("/_app/today")({
   component: TodayPage,
@@ -48,12 +59,15 @@ function TodayPage() {
   const { user } = useAuth();
   const userId = user!.id;
   const queryClient = useQueryClient();
-  const [selectedTask, setSelectedTask] = React.useState<any | null>(null);
+  const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [selectedSubscriptionId, setSelectedSubscriptionId] = React.useState<
     string | null
   >(null);
   const [selectedDayNumber, setSelectedDayNumber] = React.useState<number | null>(
     null,
+  );
+  const [formResponses, setFormResponses] = React.useState<Record<string, string>>(
+    {},
   );
 
   const { data: todayData } = useSuspenseQuery({
@@ -129,11 +143,11 @@ function TodayPage() {
         {filteredTodayData.map((group) => {
           const { subscription, experiment, tasks, currentDay, totalDays } =
             group;
-          const box = experiment.boxId as any;
+          const box = experiment.boxId;
           const subscriptionId = subscription._id;
 
           // Count completed tasks for this subscription/day
-          const completedCount = tasks.filter((task: any) =>
+          const completedCount = tasks.filter((task) =>
             isTaskCompleted(subscriptionId, task._id, currentDay),
           ).length;
 
@@ -157,7 +171,7 @@ function TodayPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {tasks.map((task: any) => {
+                  {tasks.map((task) => {
                     const completed = isTaskCompleted(
                       subscriptionId,
                       task._id,
@@ -171,6 +185,7 @@ function TodayPage() {
                           setSelectedTask(task);
                           setSelectedSubscriptionId(subscriptionId);
                           setSelectedDayNumber(currentDay);
+                          setFormResponses({});
                         }}
                         className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
                           completed ? "bg-muted/50" : "hover:bg-muted"
@@ -231,12 +246,121 @@ function TodayPage() {
                 </DrawerTitle>
               </DrawerHeader>
               <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {selectedTask.blocks?.map((block: any, index: number) => (
-                  <MarkdownRenderer
-                    key={index}
-                    content={getLocalized(block.content, language)}
-                  />
-                ))}
+                <FieldGroup>
+                  {selectedTask.blocks?.map((block: Block, index: number) => {
+                    if (block.type === "markdown") {
+                      return (
+                        <MarkdownRenderer
+                          key={index}
+                          content={getLocalized(block.content, language)}
+                        />
+                      );
+                    }
+
+                    if (block.type === "input") {
+                      const isTextarea = block.inputType === "textarea";
+                      return (
+                        <Field key={index}>
+                          <FieldLabel>
+                            {getLocalized(block.label, language)}
+                            {block.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </FieldLabel>
+                          {isTextarea ? (
+                            <Textarea
+                              value={formResponses[block.id] || ""}
+                              onChange={(e) =>
+                                setFormResponses((prev) => ({
+                                  ...prev,
+                                  [block.id]: e.target.value,
+                                }))
+                              }
+                              placeholder={
+                                block.placeholder
+                                  ? getLocalized(block.placeholder, language)
+                                  : undefined
+                              }
+                              disabled={!!selectedTaskCompleted}
+                            />
+                          ) : (
+                            <Input
+                              type={block.inputType || "text"}
+                              value={formResponses[block.id] || ""}
+                              onChange={(e) =>
+                                setFormResponses((prev) => ({
+                                  ...prev,
+                                  [block.id]: e.target.value,
+                                }))
+                              }
+                              placeholder={
+                                block.placeholder
+                                  ? getLocalized(block.placeholder, language)
+                                  : undefined
+                              }
+                              disabled={!!selectedTaskCompleted}
+                            />
+                          )}
+                          {block.helpText && (
+                            <FieldDescription>
+                              {getLocalized(block.helpText, language)}
+                            </FieldDescription>
+                          )}
+                        </Field>
+                      );
+                    }
+
+                    if (block.type === "select") {
+                      return (
+                        <Field key={index}>
+                          <FieldLabel>
+                            {getLocalized(block.label, language)}
+                            {block.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </FieldLabel>
+                          <Select
+                            value={formResponses[block.id] || ""}
+                            onValueChange={(value) =>
+                              setFormResponses((prev) => ({
+                                ...prev,
+                                [block.id]: value,
+                              }))
+                            }
+                            disabled={!!selectedTaskCompleted}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue
+                                placeholder={
+                                  language === "es"
+                                    ? "Selecciona una opción"
+                                    : "Select an option"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {block.options.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
+                                  {getLocalized(option.label, language)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {block.helpText && (
+                            <FieldDescription>
+                              {getLocalized(block.helpText, language)}
+                            </FieldDescription>
+                          )}
+                        </Field>
+                      );
+                    }
+
+                    return null;
+                  })}
+                </FieldGroup>
               </div>
               <div className="p-4 border-t bg-background flex gap-2">
                 {selectedSubscriptionId && selectedDayNumber !== null && (
@@ -244,11 +368,26 @@ function TodayPage() {
                     variant={selectedTaskCompleted ? "outline" : "default"}
                     className="flex-1"
                     onClick={() => {
+                      // Check required fields
+                      const requiredBlocks =
+                        selectedTask.blocks?.filter(
+                          (b): b is Block & { id: string; required: true } =>
+                            (b.type === "input" || b.type === "select") &&
+                            !!b.required,
+                        ) || [];
+                      const missingRequired = requiredBlocks.some(
+                        (b) => !formResponses[b.id]?.trim(),
+                      );
+                      if (!selectedTaskCompleted && missingRequired) {
+                        return; // Don't submit if required fields are empty
+                      }
+
                       const data = {
                         userId,
                         subscriptionId: selectedSubscriptionId,
                         taskId: selectedTask._id,
                         dayNumber: selectedDayNumber,
+                        responses: formResponses,
                       };
                       if (selectedTaskCompleted) {
                         uncompleteMutation.mutate({ data });

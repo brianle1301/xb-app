@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/lib/auth-context";
 import { getLocalized, useLanguage } from "@/lib/language-context";
 import { getJournalEntriesByDate } from "@/server/rpc/journal";
+import type { InputBlock, SelectBlock } from "@/types/shared";
 
 export const Route = createFileRoute("/_app/journal")({
   component: JournalPage,
@@ -165,8 +166,8 @@ function JournalPage() {
 
       <div className="space-y-4">
         {entries?.map((entry) => {
-          const task = entry.taskId as any;
-          const experiment = entry.experimentId as any;
+          const task = entry.taskId;
+          const experiment = entry.experimentId;
           const time = new Date(entry.date).toLocaleTimeString(
             language === "es" ? "es-ES" : "en-US",
             {
@@ -174,6 +175,16 @@ function JournalPage() {
               minute: "2-digit",
             },
           );
+
+          // Get input/select blocks that have responses
+          const inputBlocks =
+            task.blocks?.filter(
+              (b): b is InputBlock | SelectBlock =>
+                (b.type === "input" || b.type === "select") &&
+                !!entry.responses?.[b.id],
+            ) || [];
+
+          const hasResponses = inputBlocks.length > 0;
 
           return (
             <Card key={entry._id}>
@@ -192,9 +203,33 @@ function JournalPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{entry.response}</p>
-              </CardContent>
+              {hasResponses && (
+                <CardContent>
+                  <div className="space-y-2">
+                    {inputBlocks.map((block) => {
+                      const response = entry.responses[block.id];
+                      // For select blocks, find the label for the selected value
+                      let displayValue: string = response;
+                      if (block.type === "select") {
+                        const option = block.options.find(
+                          (o) => o.value === response,
+                        );
+                        if (option) {
+                          displayValue = getLocalized(option.label, language);
+                        }
+                      }
+                      return (
+                        <div key={block.id}>
+                          <p className="text-xs text-muted-foreground">
+                            {getLocalized(block.label, language)}
+                          </p>
+                          <p className="text-sm">{displayValue}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              )}
             </Card>
           );
         })}

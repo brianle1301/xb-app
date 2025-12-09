@@ -1,7 +1,99 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, type Types } from "mongoose";
 
 // Supported languages
 export type Language = "en" | "es";
+
+// ============ Document Types ============
+// Define interfaces first, then use them as schema generics
+// These represent what .lean() returns (plain objects)
+
+interface LocalizedText {
+  en: string;
+  es: string;
+}
+
+export interface SelectOptionDoc {
+  value: string;
+  label: LocalizedText;
+}
+
+export interface BlockDoc {
+  type: "markdown" | "input" | "select";
+  content?: { en?: string; es?: string };
+  id?: string;
+  label?: { en?: string; es?: string };
+  helpText?: { en?: string; es?: string };
+  required?: boolean;
+  inputType?: "text" | "number" | "textarea";
+  placeholder?: { en?: string; es?: string };
+  options?: SelectOptionDoc[];
+}
+
+export interface TaskDoc {
+  _id?: Types.ObjectId;
+  name: LocalizedText;
+  icon: string;
+  blocks?: BlockDoc[];
+}
+
+export interface ExperimentDayDoc {
+  dayNumber: number;
+  tasks: TaskDoc[];
+}
+
+export interface BoxDoc {
+  _id: Types.ObjectId;
+  name: LocalizedText;
+  description: LocalizedText;
+  thumbnail: string;
+  order: number;
+}
+
+export interface ExperimentDoc {
+  _id: Types.ObjectId;
+  name: LocalizedText;
+  description: LocalizedText;
+  boxId: Types.ObjectId | BoxDoc;
+  days: ExperimentDayDoc[];
+}
+
+export interface SubscriptionDoc {
+  _id: Types.ObjectId;
+  userId: string;
+  experimentId: Types.ObjectId | ExperimentDoc;
+  status: "offered" | "started" | "completed" | "abandoned";
+  offeredAt: Date;
+  startedAt?: Date;
+  endedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface JournalEntryDoc {
+  _id: Types.ObjectId;
+  userId: string;
+  subscriptionId: Types.ObjectId;
+  experimentId: Types.ObjectId | ExperimentDoc;
+  taskId: Types.ObjectId | TaskDoc;
+  dayNumber: number;
+  date: Date;
+  responses: Record<string, string>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TaskCompletionDoc {
+  _id: Types.ObjectId;
+  userId: string;
+  subscriptionId: Types.ObjectId;
+  taskId: Types.ObjectId;
+  dayNumber: number;
+  completedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============ Schemas ============
 
 // Localized text schema (reusable)
 const localizedText = {
@@ -9,17 +101,53 @@ const localizedText = {
   es: { type: String, required: true },
 } as const;
 
+// Select option schema for select blocks
+const SelectOptionSchema = new Schema<SelectOptionDoc>(
+  {
+    value: { type: String, required: true },
+    label: localizedText,
+  },
+  { _id: false },
+);
+
+// Block schema - supports markdown, input, and select types
+const BlockSchema = new Schema<BlockDoc>(
+  {
+    type: { type: String, enum: ["markdown", "input", "select"], required: true },
+    // For markdown blocks
+    content: {
+      en: { type: String },
+      es: { type: String },
+    },
+    // For input/select blocks
+    id: { type: String }, // unique identifier for the input within the task
+    label: {
+      en: { type: String },
+      es: { type: String },
+    },
+    helpText: {
+      en: { type: String },
+      es: { type: String },
+    },
+    required: { type: Boolean, default: false },
+    // For input blocks
+    inputType: { type: String, enum: ["text", "number", "textarea"] },
+    placeholder: {
+      en: { type: String },
+      es: { type: String },
+    },
+    // For select blocks
+    options: [SelectOptionSchema],
+  },
+  { _id: false },
+);
+
 // Task schema (embedded in Experiment days)
-const TaskSchema = new Schema(
+const TaskSchema = new Schema<TaskDoc>(
   {
     name: localizedText,
     icon: { type: String, required: true },
-    blocks: [
-      {
-        type: { type: String, enum: ["markdown"], required: true },
-        content: localizedText,
-      },
-    ],
+    blocks: [BlockSchema],
   },
   { _id: true },
 );
@@ -38,7 +166,7 @@ const ExperimentSchema = new Schema({
 });
 
 // Box
-const BoxSchema = new Schema({
+const BoxSchema = new Schema<BoxDoc>({
   name: localizedText,
   description: localizedText,
   thumbnail: { type: String, required: true },
@@ -80,16 +208,30 @@ SubscriptionSchema.index(
 const JournalEntrySchema = new Schema(
   {
     userId: { type: String, required: true },
+    subscriptionId: {
+      type: Schema.Types.ObjectId,
+      ref: "Subscription",
+      required: true,
+    },
     experimentId: {
       type: Schema.Types.ObjectId,
       ref: "Experiment",
       required: true,
     },
     taskId: { type: Schema.Types.ObjectId, required: true },
+    dayNumber: { type: Number, required: true },
     date: { type: Date, required: true },
-    response: { type: String, required: true },
+    // responses is a map of block id -> user response value
+    // For tasks without inputs, this will be empty
+    responses: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true },
+);
+
+// Unique index: one journal entry per user/subscription/task/day
+JournalEntrySchema.index(
+  { userId: 1, subscriptionId: 1, taskId: 1, dayNumber: 1 },
+  { unique: true },
 );
 
 // Task Completion - tracks when a user completes a task for a specific day
