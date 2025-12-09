@@ -1,12 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import { ObjectId } from "mongodb";
 
-import {
-  JournalEntry,
-  Subscription,
-  type SubscriptionDoc,
-  TaskCompletion as TaskCompletionModel,
-  type TaskCompletionDoc,
-} from "../db/models";
+import { getJournalEntries, getSubscriptions, getTaskCompletions } from "../db/client";
+import type { TaskCompletionDoc } from "../db/types";
 
 // ============ Types ============
 
@@ -50,54 +46,72 @@ export const completeTask = createServerFn({ method: "POST" })
     }) => data
   )
   .handler(async ({ data }): Promise<TaskCompletion> => {
-    // Create completion record
-    const completion = await TaskCompletionModel.findOneAndUpdate(
+    const taskCompletionsCol = await getTaskCompletions();
+    const subscriptionsCol = await getSubscriptions();
+    const journalEntriesCol = await getJournalEntries();
+
+    const now = new Date();
+
+    // Create or update completion record
+    const completion = await taskCompletionsCol.findOneAndUpdate(
       {
         userId: data.userId,
-        subscriptionId: data.subscriptionId,
-        taskId: data.taskId,
+        subscriptionId: new ObjectId(data.subscriptionId),
+        taskId: new ObjectId(data.taskId),
         dayNumber: data.dayNumber,
       },
       {
-        userId: data.userId,
-        subscriptionId: data.subscriptionId,
-        taskId: data.taskId,
-        dayNumber: data.dayNumber,
-        completedAt: new Date(),
+        $set: {
+          userId: data.userId,
+          subscriptionId: new ObjectId(data.subscriptionId),
+          taskId: new ObjectId(data.taskId),
+          dayNumber: data.dayNumber,
+          completedAt: now,
+          updatedAt: now,
+        },
+        $setOnInsert: {
+          createdAt: now,
+        },
       },
-      { upsert: true, new: true }
-    ).lean<TaskCompletionDoc>();
+      { upsert: true, returnDocument: "after" }
+    );
 
     if (!completion) {
       throw new Error("Failed to create completion");
     }
 
     // Get subscription to find experimentId
-    const subscription = await Subscription.findById(
-      data.subscriptionId
-    ).lean<SubscriptionDoc>();
+    const subscription = await subscriptionsCol.findOne({
+      _id: new ObjectId(data.subscriptionId),
+    });
     if (!subscription) {
       throw new Error("Subscription not found");
     }
 
-    // Create journal entry
-    await JournalEntry.findOneAndUpdate(
+    // Create or update journal entry
+    await journalEntriesCol.findOneAndUpdate(
       {
         userId: data.userId,
-        subscriptionId: data.subscriptionId,
-        taskId: data.taskId,
+        subscriptionId: new ObjectId(data.subscriptionId),
+        taskId: new ObjectId(data.taskId),
         dayNumber: data.dayNumber,
       },
       {
-        userId: data.userId,
-        subscriptionId: data.subscriptionId,
-        experimentId: subscription.experimentId,
-        taskId: data.taskId,
-        dayNumber: data.dayNumber,
-        date: new Date(),
-        responses: data.responses || {},
+        $set: {
+          userId: data.userId,
+          subscriptionId: new ObjectId(data.subscriptionId),
+          experimentId: subscription.experimentId,
+          taskId: new ObjectId(data.taskId),
+          dayNumber: data.dayNumber,
+          date: now,
+          responses: data.responses || {},
+          updatedAt: now,
+        },
+        $setOnInsert: {
+          createdAt: now,
+        },
       },
-      { upsert: true, new: true }
+      { upsert: true }
     );
 
     return serializeTaskCompletion(completion);
@@ -114,19 +128,22 @@ export const uncompleteTask = createServerFn({ method: "POST" })
     }) => data
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
+    const taskCompletionsCol = await getTaskCompletions();
+    const journalEntriesCol = await getJournalEntries();
+
     // Delete completion record
-    await TaskCompletionModel.deleteOne({
+    await taskCompletionsCol.deleteOne({
       userId: data.userId,
-      subscriptionId: data.subscriptionId,
-      taskId: data.taskId,
+      subscriptionId: new ObjectId(data.subscriptionId),
+      taskId: new ObjectId(data.taskId),
       dayNumber: data.dayNumber,
     });
 
     // Delete journal entry
-    await JournalEntry.deleteOne({
+    await journalEntriesCol.deleteOne({
       userId: data.userId,
-      subscriptionId: data.subscriptionId,
-      taskId: data.taskId,
+      subscriptionId: new ObjectId(data.subscriptionId),
+      taskId: new ObjectId(data.taskId),
       dayNumber: data.dayNumber,
     });
 
@@ -140,11 +157,15 @@ export const getCompletionsForDay = createServerFn({ method: "POST" })
       data
   )
   .handler(async ({ data }): Promise<TaskCompletion[]> => {
-    const completions = await TaskCompletionModel.find({
-      userId: data.userId,
-      subscriptionId: data.subscriptionId,
-      dayNumber: data.dayNumber,
-    }).lean<TaskCompletionDoc[]>();
+    const taskCompletionsCol = await getTaskCompletions();
+
+    const completions = await taskCompletionsCol
+      .find({
+        userId: data.userId,
+        subscriptionId: new ObjectId(data.subscriptionId),
+        dayNumber: data.dayNumber,
+      })
+      .toArray();
 
     return completions.map(serializeTaskCompletion);
   });
@@ -153,11 +174,11 @@ export const getCompletionsForDay = createServerFn({ method: "POST" })
 export const getTodayCompletions = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: userId }): Promise<TaskCompletion[]> => {
+    const taskCompletionsCol = await getTaskCompletions();
+
     // Get today's completions (we'll filter by dayNumber on the client since
     // each subscription may have a different current day)
-    const completions = await TaskCompletionModel.find({ userId }).lean<
-      TaskCompletionDoc[]
-    >();
+    const completions = await taskCompletionsCol.find({ userId }).toArray();
 
     return completions.map(serializeTaskCompletion);
   });

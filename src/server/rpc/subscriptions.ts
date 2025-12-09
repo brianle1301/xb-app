@@ -1,17 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
-import { Types } from "mongoose";
+import { ObjectId } from "mongodb";
 
 import type { Task } from "@/types/shared";
 
+import { getExperiments, getSubscriptions } from "../db/client";
+import type {
+  ExperimentDoc,
+  ExperimentWithBoxDoc,
+  SubscriptionDoc,
+  SubscriptionWithExperimentDoc,
+  TaskDoc,
+} from "../db/types";
 import {
-  type BoxDoc,
-  type ExperimentDoc,
-  Experiment,
-  type SubscriptionDoc,
-  Subscription as SubscriptionModel,
-  type TaskDoc,
-} from "../db/models";
-import { type ExperimentWithBox, serializeExperimentWithBox, serializeTask } from "./experiments";
+  type ExperimentWithBox,
+  populateExperimentWithBox,
+  serializeExperimentWithBox,
+  serializeTask,
+} from "./experiments";
 
 // ============ Types ============
 
@@ -46,26 +51,11 @@ export interface TodayTasksGroup {
 
 // ============ Serialization ============
 
-// Type for subscription with populated experiment (which has populated box)
-interface SubscriptionWithExperimentDoc extends Omit<SubscriptionDoc, "experimentId"> {
-  experimentId: Omit<ExperimentDoc, "boxId"> & { boxId: BoxDoc };
-}
-
-// Type guard to check if experimentId is populated
-function isPopulatedExperiment(experimentId: Types.ObjectId | ExperimentDoc): experimentId is ExperimentDoc {
-  return typeof experimentId === "object" && "name" in experimentId;
-}
-
 function serializeSubscription(doc: SubscriptionDoc): Subscription {
-  // Handle experimentId which might be ObjectId or populated ExperimentDoc
-  const experimentId = isPopulatedExperiment(doc.experimentId)
-    ? doc.experimentId._id.toString()
-    : doc.experimentId.toString();
-
   return {
     _id: doc._id.toString(),
     userId: doc.userId,
-    experimentId,
+    experimentId: doc.experimentId.toString(),
     status: doc.status,
     offeredAt: doc.offeredAt,
     startedAt: doc.startedAt,
@@ -95,21 +85,16 @@ function serializeSubscriptionWithExperiment(
 
 function serializeTodayTasksGroup(
   subscription: SubscriptionDoc,
-  experiment: Omit<ExperimentDoc, "boxId"> & { boxId: BoxDoc },
+  experiment: ExperimentWithBoxDoc,
   currentDay: number,
   totalDays: number,
   tasks: TaskDoc[],
 ): TodayTasksGroup {
-  // Handle experimentId which might be ObjectId or populated ExperimentDoc
-  const experimentId = isPopulatedExperiment(subscription.experimentId)
-    ? subscription.experimentId._id.toString()
-    : subscription.experimentId.toString();
-
   return {
     subscription: {
       _id: subscription._id.toString(),
       userId: subscription.userId,
-      experimentId,
+      experimentId: subscription.experimentId.toString(),
       status: subscription.status,
       offeredAt: subscription.offeredAt,
       startedAt: subscription.startedAt,
@@ -142,42 +127,60 @@ function calculateCurrentDay(startedAt: Date): number {
   return diffDays + 1; // Day 1 is the first day
 }
 
+// Helper to populate subscription with experiment and box
+async function populateSubscription(
+  subscription: SubscriptionDoc,
+): Promise<SubscriptionWithExperimentDoc | null> {
+  const experiments = await getExperiments();
+  const experiment = await experiments.findOne({ _id: subscription.experimentId });
+  if (!experiment) return null;
+
+  const experimentWithBox = await populateExperimentWithBox(experiment);
+  if (!experimentWithBox) return null;
+
+  return {
+    ...subscription,
+    experimentId: experimentWithBox,
+  };
+}
+
 // ============ RPC Functions ============
 
 // Get all subscriptions for a user (with experiment details)
 export const getUserSubscriptions = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: userId }): Promise<SubscriptionWithExperiment[]> => {
-    const subscriptions = await SubscriptionModel.find({
-      userId,
-      status: { $in: ["offered", "started"] },
-    })
-      .populate({
-        path: "experimentId",
-        populate: { path: "boxId" },
+    const subscriptionsCol = await getSubscriptions();
+    const subscriptions = await subscriptionsCol
+      .find({
+        userId,
+        status: { $in: ["offered", "started"] },
       })
-      .lean<SubscriptionWithExperimentDoc[]>();
+      .toArray();
 
     // Check for started subscriptions that should be marked as completed
     const results: SubscriptionWithExperiment[] = [];
 
     for (const sub of subscriptions) {
+      const populated = await populateSubscription(sub);
+      if (!populated) continue;
+
       if (sub.status === "started" && sub.startedAt) {
-        const experiment = sub.experimentId;
+        const experiment = populated.experimentId;
         const currentDay = calculateCurrentDay(sub.startedAt);
 
         if (currentDay > experiment.days.length) {
           // Mark as completed
-          await SubscriptionModel.findByIdAndUpdate(sub._id, {
-            status: "completed",
-            endedAt: new Date(),
-          });
+          await subscriptionsCol.updateOne(
+            { _id: sub._id },
+            { $set: { status: "completed", endedAt: new Date() } },
+          );
           continue; // Don't include in active subscriptions
         }
 
-        results.push(serializeSubscriptionWithExperiment(sub, currentDay));
+        results.push(serializeSubscriptionWithExperiment(populated, currentDay));
       } else {
-        results.push(serializeSubscriptionWithExperiment(sub, null));
+        results.push(serializeSubscriptionWithExperiment(populated, null));
       }
     }
 
@@ -189,83 +192,80 @@ export const startSubscription = createServerFn({ method: "POST" })
   .inputValidator((data: { subscriptionId: string }) => data)
   .handler(async ({ data: { subscriptionId } }): Promise<Subscription> => {
     const startedAt = getStartOfDay();
+    const subscriptionsCol = await getSubscriptions();
 
-    const subscription = await SubscriptionModel.findOneAndUpdate(
-      { _id: subscriptionId, status: "offered" },
-      { status: "started", startedAt },
-      { new: true },
-    ).lean<SubscriptionDoc>();
+    const result = await subscriptionsCol.findOneAndUpdate(
+      { _id: new ObjectId(subscriptionId), status: "offered" },
+      { $set: { status: "started", startedAt, updatedAt: new Date() } },
+      { returnDocument: "after" },
+    );
 
-    if (!subscription) {
+    if (!result) {
       throw new Error("Subscription not found or not in offered state");
     }
 
-    return serializeSubscription(subscription);
+    return serializeSubscription(result);
   });
 
 // Abandon a subscription
 export const abandonSubscription = createServerFn({ method: "POST" })
   .inputValidator((data: { subscriptionId: string }) => data)
   .handler(async ({ data: { subscriptionId } }): Promise<Subscription> => {
-    const subscription = await SubscriptionModel.findOneAndUpdate(
-      { _id: subscriptionId, status: "started" },
-      { status: "abandoned", endedAt: new Date() },
-      { new: true },
-    ).lean<SubscriptionDoc>();
+    const subscriptionsCol = await getSubscriptions();
 
-    if (!subscription) {
+    const result = await subscriptionsCol.findOneAndUpdate(
+      { _id: new ObjectId(subscriptionId), status: "started" },
+      { $set: { status: "abandoned", endedAt: new Date(), updatedAt: new Date() } },
+      { returnDocument: "after" },
+    );
+
+    if (!result) {
       throw new Error("Subscription not found or not in started state");
     }
 
-    return serializeSubscription(subscription);
+    return serializeSubscription(result);
   });
 
 // Get today's tasks based on user's active subscriptions
 export const getTodayTasksForUser = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: userId }): Promise<TodayTasksGroup[]> => {
-    // Get all started subscriptions for the user with populated experiment
-    const subscriptions = await SubscriptionModel.find({
-      userId,
-      status: "started",
-    })
-      .populate({
-        path: "experimentId",
-        populate: { path: "boxId" },
+    const subscriptionsCol = await getSubscriptions();
+
+    // Get all started subscriptions for the user
+    const subscriptions = await subscriptionsCol
+      .find({
+        userId,
+        status: "started",
       })
-      .lean<SubscriptionWithExperimentDoc[]>();
+      .toArray();
 
     const results: TodayTasksGroup[] = [];
 
     for (const sub of subscriptions) {
       if (!sub.startedAt) continue;
 
-      const experiment = sub.experimentId;
+      const populated = await populateSubscription(sub);
+      if (!populated) continue;
+
+      const experiment = populated.experimentId;
       const currentDay = calculateCurrentDay(sub.startedAt);
 
       // Check if experiment is completed
       if (currentDay > experiment.days.length) {
-        await SubscriptionModel.findByIdAndUpdate(sub._id, {
-          status: "completed",
-          endedAt: new Date(),
-        });
+        await subscriptionsCol.updateOne(
+          { _id: sub._id },
+          { $set: { status: "completed", endedAt: new Date() } },
+        );
         continue;
       }
 
       // Find the day's tasks (tasks are now inlined in experiment.days)
-      const day = experiment.days.find(
-        (d) => d.dayNumber === currentDay,
-      );
+      const day = experiment.days.find((d) => d.dayNumber === currentDay);
       if (!day || !day.tasks.length) continue;
 
       results.push(
-        serializeTodayTasksGroup(
-          sub,
-          experiment,
-          currentDay,
-          experiment.days.length,
-          day.tasks,
-        ),
+        serializeTodayTasksGroup(sub, experiment, currentDay, experiment.days.length, day.tasks),
       );
     }
 
@@ -276,27 +276,30 @@ export const getTodayTasksForUser = createServerFn({ method: "POST" })
 export const offerExperimentToUser = createServerFn({ method: "POST" })
   .inputValidator((data: { userId: string; experimentId: string }) => data)
   .handler(async ({ data: { userId, experimentId } }): Promise<Subscription> => {
+    const subscriptionsCol = await getSubscriptions();
+
     // Check if there's already an active subscription
-    const existing = await SubscriptionModel.findOne({
+    const existing = await subscriptionsCol.findOne({
       userId,
-      experimentId,
+      experimentId: new ObjectId(experimentId),
       status: { $in: ["offered", "started"] },
-    }).lean<SubscriptionDoc>();
-
-    if (existing) {
-      throw new Error(
-        "User already has an active subscription for this experiment",
-      );
-    }
-
-    const doc = await SubscriptionModel.create({
-      userId,
-      experimentId,
-      status: "offered",
-      offeredAt: new Date(),
     });
 
-    const subscription = await SubscriptionModel.findById(doc._id).lean<SubscriptionDoc>();
+    if (existing) {
+      throw new Error("User already has an active subscription for this experiment");
+    }
+
+    const now = new Date();
+    const result = await subscriptionsCol.insertOne({
+      userId,
+      experimentId: new ObjectId(experimentId),
+      status: "offered",
+      offeredAt: now,
+      createdAt: now,
+      updatedAt: now,
+    } as SubscriptionDoc);
+
+    const subscription = await subscriptionsCol.findOne({ _id: result.insertedId });
     if (!subscription) {
       throw new Error("Failed to create subscription");
     }
@@ -307,31 +310,39 @@ export const offerExperimentToUser = createServerFn({ method: "POST" })
 export const offerAllExperimentsToUser = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: userId }): Promise<Subscription[]> => {
-    const experiments = await Experiment.find().lean<ExperimentDoc[]>();
+    const experimentsCol = await getExperiments();
+    const subscriptionsCol = await getSubscriptions();
+
+    const experiments = await experimentsCol.find().toArray();
 
     const subscriptionIds = await Promise.all(
-      experiments.map(async (experiment) => {
-        const existing = await SubscriptionModel.findOne({
+      experiments.map(async (experiment: ExperimentDoc) => {
+        const existing = await subscriptionsCol.findOne({
           userId,
           experimentId: experiment._id,
           status: { $in: ["offered", "started"] },
-        }).lean<SubscriptionDoc>();
+        });
 
         if (existing) return existing._id;
 
-        const doc = await SubscriptionModel.create({
+        const now = new Date();
+        const result = await subscriptionsCol.insertOne({
           userId,
           experimentId: experiment._id,
           status: "offered",
-          offeredAt: new Date(),
-        });
-        return doc._id;
+          offeredAt: now,
+          createdAt: now,
+          updatedAt: now,
+        } as SubscriptionDoc);
+        return result.insertedId;
       }),
     );
 
-    const subscriptions = await SubscriptionModel.find({
-      _id: { $in: subscriptionIds },
-    }).lean<SubscriptionDoc[]>();
+    const subscriptions = await subscriptionsCol
+      .find({
+        _id: { $in: subscriptionIds },
+      })
+      .toArray();
 
     return subscriptions.map(serializeSubscription);
   });

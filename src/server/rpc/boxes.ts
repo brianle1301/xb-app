@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import { ObjectId } from "mongodb";
 
 import type { LocalizedText } from "@/types/shared";
 
-import { Box as BoxModel, type BoxDoc } from "../db/models";
+import { getBoxes } from "../db/client";
+import type { BoxDoc } from "../db/types";
 
 // ============ Types ============
 
@@ -36,15 +38,17 @@ export function serializeBox(doc: BoxDoc): Box {
 
 export const listBoxes = createServerFn({ method: "GET" }).handler(
   async (): Promise<Box[]> => {
-    const boxes = await BoxModel.find().sort({ order: 1 }).lean<BoxDoc[]>();
-    return boxes.map(serializeBox);
+    const boxes = await getBoxes();
+    const docs = await boxes.find().sort({ order: 1 }).toArray();
+    return docs.map(serializeBox);
   }
 );
 
 export const getBox = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: boxId }): Promise<Box> => {
-    const box = await BoxModel.findById(boxId).lean<BoxDoc>();
+    const boxes = await getBoxes();
+    const box = await boxes.findOne({ _id: new ObjectId(boxId) });
     if (!box) {
       throw new Error("Box not found");
     }

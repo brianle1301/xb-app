@@ -1,12 +1,4 @@
-import mongoose from "mongoose";
-
-import {
-  Box,
-  Experiment,
-  JournalEntry,
-  Subscription,
-  TaskCompletion,
-} from "../db/models";
+import { MongoClient } from "mongodb";
 
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/xb-app";
@@ -288,22 +280,27 @@ Sal y camina por 20 minutos hoy.
 };
 
 async function seed() {
+  const client = new MongoClient(MONGODB_URI);
+
   try {
-    await mongoose.connect(MONGODB_URI);
+    await client.connect();
     console.log("Connected to MongoDB");
+
+    const db = client.db();
 
     // Clear existing data
     await Promise.all([
-      Box.deleteMany({}),
-      Experiment.deleteMany({}),
-      JournalEntry.deleteMany({}),
-      Subscription.deleteMany({}),
-      TaskCompletion.deleteMany({}),
+      db.collection("boxes").deleteMany({}),
+      db.collection("experiments").deleteMany({}),
+      db.collection("journalentries").deleteMany({}),
+      db.collection("subscriptions").deleteMany({}),
+      db.collection("taskcompletions").deleteMany({}),
     ]);
     console.log("Cleared existing data");
 
     // Create Boxes
-    const sleepBox = await Box.create({
+    const boxesCol = db.collection("boxes");
+    const sleepBoxResult = await boxesCol.insertOne({
       name: { en: "Sleep", es: "Dormir" },
       description: {
         en: "Improve your sleep quality and establish better sleep habits",
@@ -313,7 +310,7 @@ async function seed() {
       order: 1,
     });
 
-    const eatBox = await Box.create({
+    const eatBoxResult = await boxesCol.insertOne({
       name: { en: "Eat", es: "Comer" },
       description: {
         en: "Develop healthier eating habits and nutrition awareness",
@@ -323,7 +320,7 @@ async function seed() {
       order: 2,
     });
 
-    const moveBox = await Box.create({
+    const moveBoxResult = await boxesCol.insertOne({
       name: { en: "Move", es: "Moverse" },
       description: {
         en: "Build a sustainable exercise routine and stay active",
@@ -336,13 +333,15 @@ async function seed() {
     console.log("Created boxes");
 
     // Create Experiments with inlined tasks
-    await Experiment.create({
+    const experimentsCol = db.collection("experiments");
+
+    await experimentsCol.insertOne({
       name: { en: "Better Sleep in 5 Days", es: "Mejor sueño en 5 días" },
       description: {
         en: "Establish healthy sleep habits through consistent routines",
         es: "Establece hábitos de sueño saludables a través de rutinas consistentes",
       },
-      boxId: sleepBox._id,
+      boxId: sleepBoxResult.insertedId,
       days: [
         { dayNumber: 1, tasks: [tasks.setBedtime] },
         { dayNumber: 2, tasks: [tasks.setBedtime, tasks.bedtimeRoutine] },
@@ -352,13 +351,13 @@ async function seed() {
       ],
     });
 
-    await Experiment.create({
+    await experimentsCol.insertOne({
       name: { en: "Hydration Challenge", es: "Desafío de hidratación" },
       description: {
         en: "Build the habit of drinking enough water daily",
         es: "Construye el hábito de beber suficiente agua diariamente",
       },
-      boxId: eatBox._id,
+      boxId: eatBoxResult.insertedId,
       days: [
         { dayNumber: 1, tasks: [tasks.trackWater] },
         { dayNumber: 2, tasks: [tasks.trackWater] },
@@ -368,13 +367,13 @@ async function seed() {
       ],
     });
 
-    await Experiment.create({
+    await experimentsCol.insertOne({
       name: { en: "Veggie Boost", es: "Impulso vegetal" },
       description: {
         en: "Increase your daily vegetable intake",
         es: "Aumenta tu consumo diario de vegetales",
       },
-      boxId: eatBox._id,
+      boxId: eatBoxResult.insertedId,
       days: [
         { dayNumber: 1, tasks: [tasks.addVegetables] },
         { dayNumber: 2, tasks: [tasks.addVegetables] },
@@ -384,13 +383,13 @@ async function seed() {
       ],
     });
 
-    await Experiment.create({
+    await experimentsCol.insertOne({
       name: { en: "Morning Movement", es: "Movimiento matutino" },
       description: {
         en: "Start your day with energizing movement",
         es: "Comienza tu día con movimiento energizante",
       },
-      boxId: moveBox._id,
+      boxId: moveBoxResult.insertedId,
       days: [
         { dayNumber: 1, tasks: [tasks.morningStretch] },
         { dayNumber: 2, tasks: [tasks.morningStretch, tasks.takeWalk] },
@@ -409,6 +408,8 @@ async function seed() {
   } catch (error) {
     console.error("Error seeding database:", error);
     process.exit(1);
+  } finally {
+    await client.close();
   }
 }
 
