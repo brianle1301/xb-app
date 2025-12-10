@@ -2,7 +2,12 @@ import React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { signIn, signUp } from "@/lib/auth-client";
 import { offerAllExperimentsToUser } from "@/server/rpc/subscriptions";
@@ -32,6 +37,7 @@ function LoginPage() {
           password,
           name,
         });
+
         if (result.error) {
           setError(result.error.message ?? "Sign up failed");
           return;
@@ -50,9 +56,10 @@ function LoginPage() {
           return;
         }
         // Offer any new experiments to existing users
-        const user = "data" in result ? result.data?.user : result.user;
-        if (user?.id) {
-          await offerAllExperimentsToUser({ data: user.id });
+        const userId =
+          (result as any).data?.user?.id ?? (result as any).user?.id;
+        if (userId) {
+          await offerAllExperimentsToUser({ data: userId });
         }
       }
       navigate({ to: "/today" });
@@ -110,11 +117,7 @@ function LoginPage() {
             </Field>
             {error && <FieldError>{error}</FieldError>}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading
-                ? "Loading..."
-                : isSignUp
-                  ? "Sign Up"
-                  : "Sign In"}
+              {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
             </Button>
           </FieldGroup>
         </form>

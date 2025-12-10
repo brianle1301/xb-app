@@ -25,7 +25,7 @@ const connectDB = createServerOnlyFn(async (): Promise<Db> => {
 
   client = new MongoClient(MONGODB_URI);
   await client.connect();
-  db = client.db();
+  db = client.db(process.env.MONGODB_DATABASE);
   console.log("MongoDB connected successfully");
   return db;
 });
