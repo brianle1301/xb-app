@@ -38,7 +38,15 @@ function ExperimentsPage() {
             <Card className="cursor-pointer hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-start gap-4">
-                  <span className="text-5xl">{box.thumbnail}</span>
+                  {box.thumbnail?.startsWith("http") ? (
+                    <img
+                      src={box.thumbnail}
+                      alt={getLocalized(box.name, language)}
+                      className="w-16 h-16 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <span className="text-5xl">{box.thumbnail}</span>
+                  )}
                   <div className="flex-1">
                     <h3 className="text-xl font-semibold mb-1">
                       {getLocalized(box.name, language)}

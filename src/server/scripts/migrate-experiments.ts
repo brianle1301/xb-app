@@ -4,6 +4,7 @@ import experimentsData from "../../../experiments.json";
 
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/xb-app";
+const MONGODB_DATABASE = process.env.MONGODB_DATABASE || "xb-app";
 
 // Define old schema types
 interface OldBlock {
@@ -468,65 +469,55 @@ async function migrate() {
     await client.connect();
     console.log("Connected to MongoDB");
 
-    const db = client.db();
+    const db = client.db(MONGODB_DATABASE);
 
     // Clear existing experiments only (keep boxes)
     await db.collection("experiments").deleteMany({});
     console.log("Cleared existing experiments");
 
-    // Get or create boxes
+    // Recreate boxes with image thumbnails
     const boxesCol = db.collection("boxes");
-    let moveBox = await boxesCol.findOne({ "name.en": "Move" });
-    let eatBox = await boxesCol.findOne({ "name.en": "Eat" });
-    let sleepBox = await boxesCol.findOne({ "name.en": "Sleep" });
+    await boxesCol.deleteMany({});
+    console.log("Cleared existing boxes");
 
-    // Create boxes if they don't exist
-    if (!moveBox) {
-      const result = await boxesCol.insertOne({
-        name: { en: "Move", es: "Moverse" },
-        description: {
-          en: "Build a sustainable exercise routine and stay active",
-          es: "Construye una rutina de ejercicio sostenible y mantente activo",
-        },
-        thumbnail: "🏃",
-        order: 1,
-      });
-      moveBox = { _id: result.insertedId };
-      console.log("Created Move box");
-    }
+    // Create boxes with image thumbnails
+    const moveResult = await boxesCol.insertOne({
+      name: { en: "Move", es: "Moverse" },
+      description: {
+        en: "Build a sustainable exercise routine and stay active",
+        es: "Construye una rutina de ejercicio sostenible y mantente activo",
+      },
+      thumbnail: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop",
+      order: 1,
+    });
+    console.log("Created Move box");
 
-    if (!eatBox) {
-      const result = await boxesCol.insertOne({
-        name: { en: "Eat", es: "Comer" },
-        description: {
-          en: "Develop healthier eating habits and nutrition awareness",
-          es: "Desarrolla hábitos alimenticios más saludables y conciencia nutricional",
-        },
-        thumbnail: "🥗",
-        order: 2,
-      });
-      eatBox = { _id: result.insertedId };
-      console.log("Created Eat box");
-    }
+    const eatResult = await boxesCol.insertOne({
+      name: { en: "Eat", es: "Comer" },
+      description: {
+        en: "Develop healthier eating habits and nutrition awareness",
+        es: "Desarrolla hábitos alimenticios más saludables y conciencia nutricional",
+      },
+      thumbnail: "https://images.unsplash.com/photo-1490818387583-1baba5e638af?w=400&h=300&fit=crop",
+      order: 2,
+    });
+    console.log("Created Eat box");
 
-    if (!sleepBox) {
-      const result = await boxesCol.insertOne({
-        name: { en: "Sleep", es: "Dormir" },
-        description: {
-          en: "Improve your sleep quality and establish better sleep habits",
-          es: "Mejora la calidad de tu sueño y establece mejores hábitos de sueño",
-        },
-        thumbnail: "🌙",
-        order: 3,
-      });
-      sleepBox = { _id: result.insertedId };
-      console.log("Created Sleep box");
-    }
+    const sleepResult = await boxesCol.insertOne({
+      name: { en: "Sleep", es: "Dormir" },
+      description: {
+        en: "Improve your sleep quality and establish better sleep habits",
+        es: "Mejora la calidad de tu sueño y establece mejores hábitos de sueño",
+      },
+      thumbnail: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=400&h=300&fit=crop",
+      order: 3,
+    });
+    console.log("Created Sleep box");
 
     const boxIdMap = {
-      move: moveBox._id,
-      eat: eatBox._id,
-      sleep: sleepBox._id,
+      move: moveResult.insertedId,
+      eat: eatResult.insertedId,
+      sleep: sleepResult.insertedId,
     };
 
     console.log("Box IDs:", boxIdMap);

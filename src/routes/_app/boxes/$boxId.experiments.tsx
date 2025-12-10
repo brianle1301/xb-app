@@ -165,7 +165,15 @@ function BoxExperimentsPage() {
       </Link>
 
       <div className="flex items-center gap-4 mb-6">
-        <span className="text-5xl">{box?.thumbnail}</span>
+        {box?.thumbnail?.startsWith("http") ? (
+          <img
+            src={box.thumbnail}
+            alt={getLocalized(box.name, language)}
+            className="w-16 h-16 rounded-lg object-cover"
+          />
+        ) : (
+          <span className="text-5xl">{box?.thumbnail}</span>
+        )}
         <div>
           <h1 className="text-2xl font-bold">
             {box && getLocalized(box.name, language)}
