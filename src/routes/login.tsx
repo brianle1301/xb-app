@@ -49,6 +49,11 @@ function LoginPage() {
           setError(result.error.message ?? "Sign in failed");
           return;
         }
+        // Offer any new experiments to existing users
+        const user = "data" in result ? result.data?.user : result.user;
+        if (user?.id) {
+          await offerAllExperimentsToUser({ data: user.id });
+        }
       }
       navigate({ to: "/today" });
     } catch (err) {

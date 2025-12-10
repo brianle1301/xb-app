@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { Globe, LogOut, Monitor, Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app/settings")({
 });
 
 function SettingsPage() {
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
@@ -27,6 +27,11 @@ function SettingsPage() {
     { value: "light" as const, label: language === "es" ? "Claro" : "Light", icon: Sun },
     { value: "dark" as const, label: language === "es" ? "Oscuro" : "Dark", icon: Moon },
     { value: "system" as const, label: language === "es" ? "Sistema" : "System", icon: Monitor },
+  ];
+
+  const languageOptions = [
+    { value: "en" as const, label: "English" },
+    { value: "es" as const, label: "Español" },
   ];
 
   return (
@@ -55,6 +60,22 @@ function SettingsPage() {
                   onClick={() => setTheme(option.value)}
                 >
                   <option.icon className="w-4 h-4 mr-2" />
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground mb-3 mt-4">
+              {language === "es" ? "Idioma" : "Language"}
+            </p>
+            <div className="flex gap-2">
+              {languageOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={language === option.value ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setLanguage(option.value)}
+                >
+                  <Globe className="w-4 h-4 mr-2" />
                   {option.label}
                 </Button>
               ))}

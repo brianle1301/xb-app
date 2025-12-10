@@ -7,6 +7,7 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, ChevronRight, FlaskConical, Undo2 } from "lucide-react";
 
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,7 +144,6 @@ function TodayPage() {
         {filteredTodayData.map((group) => {
           const { subscription, experiment, tasks, currentDay, totalDays } =
             group;
-          const box = experiment.boxId;
           const subscriptionId = subscription._id;
 
           // Count completed tasks for this subscription/day
@@ -157,20 +157,17 @@ function TodayPage() {
                 <CardTitle className="text-xl">
                   {getLocalized(experiment.name, language)}
                 </CardTitle>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{getLocalized(box.name, language)}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">
-                      Day {currentDay} of {totalDays}
-                    </span>
-                    <span className="text-xs">
-                      ({completedCount}/{tasks.length})
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="font-medium">
+                    Day {currentDay} of {totalDays}
+                  </span>
+                  <span className="text-xs">
+                    ({completedCount}/{tasks.length})
+                  </span>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="rounded-lg bg-muted/50 overflow-hidden divide-y divide-border">
                   {tasks.map((task) => {
                     const completed = isTaskCompleted(
                       subscriptionId,
@@ -187,16 +184,17 @@ function TodayPage() {
                           setSelectedDayNumber(currentDay);
                           setFormResponses({});
                         }}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
-                          completed ? "bg-muted/50" : "hover:bg-muted"
+                        className={`w-full flex items-center gap-3 p-3 transition-colors text-left ${
+                          completed ? "" : "hover:bg-muted"
                         }`}
                       >
                         {completed ? (
-                          <Check className="w-6 h-6 text-green-500 flex-shrink-0" />
+                          <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
                         ) : (
-                          <span className="text-2xl flex-shrink-0">
-                            {task.icon}
-                          </span>
+                          <DynamicIcon
+                            name={task.icon}
+                            className="w-5 h-5 text-muted-foreground flex-shrink-0"
+                          />
                         )}
                         <span
                           className={`flex-1 font-medium ${completed ? "line-through text-muted-foreground" : ""}`}
@@ -232,7 +230,10 @@ function TodayPage() {
                   {selectedTaskCompleted ? (
                     <Check className="w-6 h-6 text-green-500" />
                   ) : (
-                    <span className="text-2xl">{selectedTask.icon}</span>
+                    <DynamicIcon
+                      name={selectedTask.icon}
+                      className="w-6 h-6 text-muted-foreground"
+                    />
                   )}
                   <span
                     className={

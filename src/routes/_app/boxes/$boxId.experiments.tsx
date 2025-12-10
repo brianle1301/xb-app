@@ -5,8 +5,9 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ChevronRight, Play, Undo2 } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, Play, Undo2 } from "lucide-react";
 
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,17 +177,19 @@ function BoxExperimentsPage() {
       </div>
 
       <div className="space-y-3">
-        {experiments?.map((experiment) => {
-          const experimentId = experiment._id;
-          const subscription = subscriptionMap.get(experimentId);
-          const isExpanded = expandedExperimentId === experimentId;
-          const dayCount = experiment.days?.length ?? 0;
-          const firstDayTasks = experiment.days?.[0]?.tasks ?? [];
+        {experiments
+          ?.filter((experiment) => subscriptionMap.has(experiment._id))
+          .map((experiment) => {
+            const experimentId = experiment._id;
+            const subscription = subscriptionMap.get(experimentId)!;
+            const isExpanded = expandedExperimentId === experimentId;
+            const dayCount = experiment.days?.length ?? 0;
+            const firstDayTasks = experiment.days?.[0]?.tasks ?? [];
 
-          const status = subscription?.status;
-          const currentDay = subscription?.currentDay;
+            const status = subscription.status;
+            const currentDay = subscription.currentDay;
 
-          return (
+            return (
             <Collapsible
               key={experimentId}
               open={isExpanded}
@@ -233,15 +236,19 @@ function BoxExperimentsPage() {
                         <p className="text-xs text-muted-foreground mb-2">
                           {language === "es" ? "Información:" : "Learn More:"}
                         </p>
-                        <div className="space-y-2 mb-4">
+                        <div className="rounded-lg bg-muted/50 overflow-hidden mb-4 divide-y divide-border">
                           {experiment.overviews.map((overview) => (
                             <button
                               key={overview._id}
                               onClick={() => setSelectedOverview(overview)}
-                              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                              className="w-full flex items-center justify-between p-3 hover:bg-muted transition-colors text-left"
                             >
                               <div className="flex items-center gap-3">
-                                <span className="text-xl">{overview.thumbnail}</span>
+                                <img
+                                  src={overview.thumbnail}
+                                  alt=""
+                                  className="w-10 h-10 rounded-md object-cover"
+                                />
                                 <span className="font-medium">
                                   {getLocalized(overview.title, language)}
                                 </span>
@@ -253,7 +260,7 @@ function BoxExperimentsPage() {
                       </>
                     )}
 
-                    {status === "offered" && subscription && (
+                    {status === "offered" && (
                       <Button
                         className="w-full mb-4"
                         onClick={(e) => {
@@ -269,12 +276,12 @@ function BoxExperimentsPage() {
                       </Button>
                     )}
 
-                    {status === "started" && currentDay && subscription && (
+                    {status === "started" && currentDay && (
                       <>
                         <p className="text-xs text-muted-foreground mb-2">
                           Today's Tasks:
                         </p>
-                        <div className="space-y-2">
+                        <div className="rounded-lg bg-muted/50 overflow-hidden divide-y divide-border">
                           {(
                             experiment.days?.[currentDay - 1]?.tasks ?? []
                           ).map((task) => {
@@ -292,16 +299,17 @@ function BoxExperimentsPage() {
                                   setSelectedDayNumber(currentDay);
                                   setFormResponses({});
                                 }}
-                                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
-                                  completed ? "bg-muted/50" : "hover:bg-muted"
+                                className={`w-full flex items-center gap-3 p-3 transition-colors text-left ${
+                                  completed ? "" : "hover:bg-muted"
                                 }`}
                               >
                                 {completed ? (
-                                  <Check className="w-6 h-6 text-green-500 flex-shrink-0" />
+                                  <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
                                 ) : (
-                                  <span className="text-2xl flex-shrink-0">
-                                    {task.icon}
-                                  </span>
+                                  <DynamicIcon
+                                    name={task.icon}
+                                    className="w-5 h-5 text-muted-foreground flex-shrink-0"
+                                  />
                                 )}
                                 <span
                                   className={`flex-1 font-medium ${completed ? "line-through text-muted-foreground" : ""}`}
@@ -321,7 +329,7 @@ function BoxExperimentsPage() {
                         <p className="text-xs text-muted-foreground mb-2">
                           Day 1 Preview:
                         </p>
-                        <div className="space-y-2">
+                        <div className="rounded-lg bg-muted/50 overflow-hidden divide-y divide-border">
                           {firstDayTasks.map((task) => (
                             <button
                               key={task._id}
@@ -331,10 +339,13 @@ function BoxExperimentsPage() {
                                 setSelectedDayNumber(null);
                                 setFormResponses({});
                               }}
-                              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                              className="w-full flex items-center justify-between p-3 hover:bg-muted transition-colors text-left"
                             >
                               <div className="flex items-center gap-3">
-                                <span className="text-xl">{task.icon}</span>
+                                <DynamicIcon
+                                  name={task.icon}
+                                  className="w-5 h-5 text-muted-foreground"
+                                />
                                 <span className="font-medium">
                                   {getLocalized(task.name, language)}
                                 </span>
@@ -349,8 +360,8 @@ function BoxExperimentsPage() {
                 </CollapsibleContent>
               </Card>
             </Collapsible>
-          );
-        })}
+            );
+          })}
       </div>
 
       {/* Task Drawer */}
@@ -372,7 +383,10 @@ function BoxExperimentsPage() {
                   {selectedTaskCompleted ? (
                     <Check className="w-6 h-6 text-green-500" />
                   ) : (
-                    <span className="text-2xl">{selectedTask.icon}</span>
+                    <DynamicIcon
+                      name={selectedTask.icon}
+                      className="w-6 h-6 text-muted-foreground"
+                    />
                   )}
                   <span
                     className={
@@ -385,6 +399,19 @@ function BoxExperimentsPage() {
                   </span>
                 </DrawerTitle>
               </DrawerHeader>
+              {!selectedSubscriptionId && (
+                <div className="mx-4 mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-amber-500">Preview Mode</p>
+                    <p className="text-muted-foreground">
+                      {language === "es"
+                        ? "Suscríbete al experimento para completar las tareas."
+                        : "Subscribe to this experiment to complete tasks."}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
                   {selectedTask.blocks?.map((block: Block, index: number) => {
@@ -421,7 +448,9 @@ function BoxExperimentsPage() {
                                   ? getLocalized(block.placeholder, language)
                                   : undefined
                               }
-                              disabled={!!selectedTaskCompleted}
+                              disabled={
+                                !!selectedTaskCompleted || !selectedSubscriptionId
+                              }
                             />
                           ) : (
                             <Input
@@ -438,7 +467,9 @@ function BoxExperimentsPage() {
                                   ? getLocalized(block.placeholder, language)
                                   : undefined
                               }
-                              disabled={!!selectedTaskCompleted}
+                              disabled={
+                                !!selectedTaskCompleted || !selectedSubscriptionId
+                              }
                             />
                           )}
                           {block.helpText && (
@@ -467,7 +498,9 @@ function BoxExperimentsPage() {
                                 [block.id]: value,
                               }))
                             }
-                            disabled={!!selectedTaskCompleted}
+                            disabled={
+                              !!selectedTaskCompleted || !selectedSubscriptionId
+                            }
                           >
                             <SelectTrigger className="w-full">
                               <SelectValue
@@ -579,8 +612,12 @@ function BoxExperimentsPage() {
           {selectedOverview && (
             <>
               <DrawerHeader>
-                <DrawerTitle className="flex items-center gap-2">
-                  <span className="text-2xl">{selectedOverview.thumbnail}</span>
+                <DrawerTitle className="flex items-center gap-3">
+                  <img
+                    src={selectedOverview.thumbnail}
+                    alt=""
+                    className="w-10 h-10 rounded-md object-cover"
+                  />
                   <span>{getLocalized(selectedOverview.title, language)}</span>
                 </DrawerTitle>
               </DrawerHeader>

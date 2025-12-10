@@ -11,6 +11,8 @@ import type {
   Task,
 } from "@/types/shared";
 
+import { type Box, serializeBox } from "./boxes";
+
 import { getBoxes, getExperiments } from "../db/client";
 import type {
   BlockDoc,
@@ -22,7 +24,6 @@ import type {
   SelectOptionDoc,
   TaskDoc,
 } from "../db/types";
-import { type Box, serializeBox } from "./boxes";
 
 // ============ Types ============
 
@@ -156,7 +157,9 @@ export function serializeExperiment(doc: ExperimentDoc): Experiment {
   };
 }
 
-export function serializeExperimentWithBox(doc: ExperimentWithBoxDoc): ExperimentWithBox {
+export function serializeExperimentWithBox(
+  doc: ExperimentWithBoxDoc
+): ExperimentWithBox {
   return {
     _id: doc._id.toString(),
     name: {
@@ -176,7 +179,9 @@ export function serializeExperimentWithBox(doc: ExperimentWithBoxDoc): Experimen
 // ============ Helpers ============
 
 // Helper to populate box in experiment
-async function populateExperimentWithBox(experiment: ExperimentDoc): Promise<ExperimentWithBoxDoc | null> {
+async function populateExperimentWithBox(
+  experiment: ExperimentDoc
+): Promise<ExperimentWithBoxDoc | null> {
   const boxes = await getBoxes();
   const box = await boxes.findOne({ _id: experiment.boxId });
   if (!box) return null;
@@ -193,7 +198,9 @@ export const listExperimentsByBox = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: boxId }): Promise<Experiment[]> => {
     const experiments = await getExperiments();
-    const docs = await experiments.find({ boxId: new ObjectId(boxId) }).toArray();
+    const docs = await experiments
+      .find({ boxId: new ObjectId(boxId) })
+      .toArray();
     return docs.map(serializeExperiment);
   });
 
@@ -201,7 +208,9 @@ export const getExperiment = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: experimentId }): Promise<Experiment> => {
     const experiments = await getExperiments();
-    const experiment = await experiments.findOne({ _id: new ObjectId(experimentId) });
+    const experiment = await experiments.findOne({
+      _id: new ObjectId(experimentId),
+    });
     if (!experiment) {
       throw new Error("Experiment not found");
     }
@@ -213,7 +222,7 @@ export const listAllExperiments = createServerFn({ method: "GET" }).handler(
     const experiments = await getExperiments();
     const docs = await experiments.find().toArray();
     return docs.map(serializeExperiment);
-  },
+  }
 );
 
 export { populateExperimentWithBox };

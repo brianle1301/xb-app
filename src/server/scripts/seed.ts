@@ -1,7 +1,31 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/xb-app";
+
+// Helper to add _id to overviews and tasks when inserting
+function prepareExperimentForInsert(experiment: {
+  name: { en: string; es: string };
+  description: { en: string; es: string };
+  boxId: ObjectId;
+  overviews?: unknown[];
+  days: { dayNumber: number; tasks: unknown[] }[];
+}) {
+  return {
+    ...experiment,
+    overviews: experiment.overviews?.map((o) => ({
+      ...(o as Record<string, unknown>),
+      _id: new ObjectId(),
+    })),
+    days: experiment.days.map((day) => ({
+      ...day,
+      tasks: day.tasks.map((t) => ({
+        ...(t as Record<string, unknown>),
+        _id: new ObjectId(),
+      })),
+    })),
+  };
+}
 
 // Reusable overview definitions
 const overviews = {
@@ -10,7 +34,8 @@ const overviews = {
       en: "The Science of Sleep",
       es: "La ciencia del sueño",
     },
-    thumbnail: "🧠",
+    thumbnail:
+      "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=400&h=300&fit=crop",
     blocks: [
       {
         type: "markdown" as const,
@@ -70,7 +95,8 @@ La mayoría de los adultos necesitan 7-9 horas de sueño por noche para completa
       en: "Sleep Hygiene Tips",
       es: "Consejos de higiene del sueño",
     },
-    thumbnail: "💡",
+    thumbnail:
+      "https://images.unsplash.com/photo-1515894203077-9cd36032142f?w=400&h=300&fit=crop",
     blocks: [
       {
         type: "markdown" as const,
@@ -120,7 +146,8 @@ Una buena higiene del sueño puede mejorar dramáticamente la calidad de tu sue�
       en: "Benefits of Hydration",
       es: "Beneficios de la hidratación",
     },
-    thumbnail: "💧",
+    thumbnail:
+      "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=400&h=300&fit=crop",
     blocks: [
       {
         type: "markdown" as const,
@@ -174,7 +201,8 @@ Una guía general es 8 vasos (2 litros) por día, pero las necesidades varían s
       en: "Why Movement Matters",
       es: "Por qué el movimiento importa",
     },
-    thumbnail: "🏃",
+    thumbnail:
+      "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=400&h=300&fit=crop",
     blocks: [
       {
         type: "markdown" as const,
@@ -571,77 +599,105 @@ async function seed() {
     // Create Experiments with inlined tasks
     const experimentsCol = db.collection("experiments");
 
-    await experimentsCol.insertOne({
-      name: { en: "Better Sleep in 5 Days", es: "Mejor sueño en 5 días" },
-      description: {
-        en: "Establish healthy sleep habits through consistent routines",
-        es: "Establece hábitos de sueño saludables a través de rutinas consistentes",
-      },
-      boxId: sleepBoxResult.insertedId,
-      overviews: [overviews.sleepScience, overviews.sleepTips],
-      days: [
-        { dayNumber: 1, tasks: [tasks.setBedtime] },
-        { dayNumber: 2, tasks: [tasks.setBedtime, tasks.bedtimeRoutine] },
-        { dayNumber: 3, tasks: [tasks.bedtimeRoutine] },
-        { dayNumber: 4, tasks: [tasks.setBedtime, tasks.bedtimeRoutine] },
-        { dayNumber: 5, tasks: [tasks.bedtimeRoutine] },
-      ],
-    });
+    await experimentsCol.insertOne(
+      prepareExperimentForInsert({
+        name: { en: "Better Sleep in 5 Days", es: "Mejor sueño en 5 días" },
+        description: {
+          en: "Establish healthy sleep habits through consistent routines",
+          es: "Establece hábitos de sueño saludables a través de rutinas consistentes",
+        },
+        boxId: sleepBoxResult.insertedId,
+        overviews: [overviews.sleepScience, overviews.sleepTips],
+        days: [
+          { dayNumber: 1, tasks: [tasks.setBedtime] },
+          { dayNumber: 2, tasks: [tasks.setBedtime, tasks.bedtimeRoutine] },
+          { dayNumber: 3, tasks: [tasks.bedtimeRoutine] },
+          { dayNumber: 4, tasks: [tasks.setBedtime, tasks.bedtimeRoutine] },
+          { dayNumber: 5, tasks: [tasks.bedtimeRoutine] },
+        ],
+      })
+    );
 
-    await experimentsCol.insertOne({
-      name: { en: "Hydration Challenge", es: "Desafío de hidratación" },
-      description: {
-        en: "Build the habit of drinking enough water daily",
-        es: "Construye el hábito de beber suficiente agua diariamente",
-      },
-      boxId: eatBoxResult.insertedId,
-      overviews: [overviews.hydrationBenefits],
-      days: [
-        { dayNumber: 1, tasks: [tasks.trackWater] },
-        { dayNumber: 2, tasks: [tasks.trackWater] },
-        { dayNumber: 3, tasks: [tasks.trackWater] },
-        { dayNumber: 4, tasks: [tasks.trackWater] },
-        { dayNumber: 5, tasks: [tasks.trackWater] },
-      ],
-    });
+    await experimentsCol.insertOne(
+      prepareExperimentForInsert({
+        name: { en: "Hydration Challenge", es: "Desafío de hidratación" },
+        description: {
+          en: "Build the habit of drinking enough water daily",
+          es: "Construye el hábito de beber suficiente agua diariamente",
+        },
+        boxId: eatBoxResult.insertedId,
+        overviews: [overviews.hydrationBenefits],
+        days: [
+          { dayNumber: 1, tasks: [tasks.trackWater] },
+          { dayNumber: 2, tasks: [tasks.trackWater] },
+          { dayNumber: 3, tasks: [tasks.trackWater] },
+          { dayNumber: 4, tasks: [tasks.trackWater] },
+          { dayNumber: 5, tasks: [tasks.trackWater] },
+        ],
+      })
+    );
 
-    await experimentsCol.insertOne({
-      name: { en: "Veggie Boost", es: "Impulso vegetal" },
-      description: {
-        en: "Increase your daily vegetable intake",
-        es: "Aumenta tu consumo diario de vegetales",
-      },
-      boxId: eatBoxResult.insertedId,
-      days: [
-        { dayNumber: 1, tasks: [tasks.addVegetables] },
-        { dayNumber: 2, tasks: [tasks.addVegetables] },
-        { dayNumber: 3, tasks: [tasks.addVegetables] },
-        { dayNumber: 4, tasks: [tasks.addVegetables] },
-        { dayNumber: 5, tasks: [tasks.addVegetables] },
-      ],
-    });
+    await experimentsCol.insertOne(
+      prepareExperimentForInsert({
+        name: { en: "Veggie Boost", es: "Impulso vegetal" },
+        description: {
+          en: "Increase your daily vegetable intake",
+          es: "Aumenta tu consumo diario de vegetales",
+        },
+        boxId: eatBoxResult.insertedId,
+        days: [
+          { dayNumber: 1, tasks: [tasks.addVegetables] },
+          { dayNumber: 2, tasks: [tasks.addVegetables] },
+          { dayNumber: 3, tasks: [tasks.addVegetables] },
+          { dayNumber: 4, tasks: [tasks.addVegetables] },
+          { dayNumber: 5, tasks: [tasks.addVegetables] },
+        ],
+      })
+    );
 
-    await experimentsCol.insertOne({
-      name: { en: "Morning Movement", es: "Movimiento matutino" },
-      description: {
-        en: "Start your day with energizing movement",
-        es: "Comienza tu día con movimiento energizante",
-      },
-      boxId: moveBoxResult.insertedId,
-      overviews: [overviews.movementBenefits],
-      days: [
-        { dayNumber: 1, tasks: [tasks.morningStretch] },
-        { dayNumber: 2, tasks: [tasks.morningStretch, tasks.takeWalk] },
-        { dayNumber: 3, tasks: [tasks.morningStretch] },
-        { dayNumber: 4, tasks: [tasks.takeWalk] },
-        { dayNumber: 5, tasks: [tasks.morningStretch, tasks.takeWalk] },
-      ],
-    });
+    await experimentsCol.insertOne(
+      prepareExperimentForInsert({
+        name: { en: "Morning Movement", es: "Movimiento matutino" },
+        description: {
+          en: "Start your day with energizing movement",
+          es: "Comienza tu día con movimiento energizante",
+        },
+        boxId: moveBoxResult.insertedId,
+        overviews: [overviews.movementBenefits],
+        days: [
+          { dayNumber: 1, tasks: [tasks.morningStretch] },
+          { dayNumber: 2, tasks: [tasks.morningStretch, tasks.takeWalk] },
+          { dayNumber: 3, tasks: [tasks.morningStretch] },
+          { dayNumber: 4, tasks: [tasks.takeWalk] },
+          { dayNumber: 5, tasks: [tasks.morningStretch, tasks.takeWalk] },
+        ],
+      })
+    );
 
     console.log("Created experiments");
 
-    // Note: User-specific data (subscriptions, journal entries, task completions)
-    // will be created when users sign up and interact with the app.
+    // Create subscriptions in "offered" state for all experiments
+    // This uses a test user ID - in production, subscriptions are created per-user
+    const TEST_USER_ID = "test-user-123";
+    const allExperiments = await experimentsCol.find({}).toArray();
+    const subscriptionsCol = db.collection("subscriptions");
+    const now = new Date();
+
+    for (const experiment of allExperiments) {
+      await subscriptionsCol.insertOne({
+        userId: TEST_USER_ID,
+        experimentId: experiment._id,
+        status: "offered",
+        offeredAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    console.log(
+      `Created ${allExperiments.length} subscriptions in "offered" state for test user`
+    );
+
     console.log("✅ Database seeded successfully!");
     process.exit(0);
   } catch (error) {

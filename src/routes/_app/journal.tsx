@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
@@ -191,7 +192,10 @@ function JournalPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{task.icon}</span>
+                    <DynamicIcon
+                      name={task.icon}
+                      className="w-6 h-6 text-muted-foreground"
+                    />
                     <div>
                       <CardTitle className="text-base">
                         {getLocalized(task.name, language)}
