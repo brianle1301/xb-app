@@ -178,9 +178,15 @@ function getIconForTask(icon: string, name: string): string {
 type ParsedBlock =
   | { type: "markdown"; content: { en: string; es: string } }
   | {
-      type: "input";
+      type: "text";
       id: string;
-      inputType: "text" | "textarea";
+      label: { en: string; es: string };
+      placeholder?: { en: string; es: string };
+      required: boolean;
+    }
+  | {
+      type: "number";
+      id: string;
       label: { en: string; es: string };
       placeholder?: { en: string; es: string };
       required: boolean;
@@ -290,9 +296,8 @@ function parseTextInput(line: string): ParsedBlock | null {
   const label = textMatch[1].trim();
 
   return {
-    type: "input",
+    type: "text",
     id: generateId(label),
-    inputType: label.length > 50 ? "textarea" : "text",
     label: { en: label, es: label },
     required: false,
   };
@@ -382,7 +387,7 @@ function convertTask(oldTask: OldTask) {
   // Deduplicate block IDs by appending index if needed
   const usedIds = new Set<string>();
   const blocks = allBlocks.map((b, index) => {
-    if (b.type === "select" || b.type === "input") {
+    if (b.type === "select" || b.type === "text" || b.type === "number") {
       let id = b.id;
       if (usedIds.has(id)) {
         id = `${id}-${index}`;
@@ -480,7 +485,7 @@ async function migrate() {
     await boxesCol.deleteMany({});
     console.log("Cleared existing boxes");
 
-    // Create boxes with image thumbnails
+    // Create boxes with image thumbnails and icons
     const moveResult = await boxesCol.insertOne({
       name: { en: "Move", es: "Moverse" },
       description: {
@@ -488,6 +493,7 @@ async function migrate() {
         es: "Construye una rutina de ejercicio sostenible y mantente activo",
       },
       thumbnail: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop",
+      icon: "dumbbell",
       order: 1,
     });
     console.log("Created Move box");
@@ -499,6 +505,7 @@ async function migrate() {
         es: "Desarrolla hábitos alimenticios más saludables y conciencia nutricional",
       },
       thumbnail: "https://images.unsplash.com/photo-1490818387583-1baba5e638af?w=400&h=300&fit=crop",
+      icon: "utensils",
       order: 2,
     });
     console.log("Created Eat box");
@@ -510,6 +517,7 @@ async function migrate() {
         es: "Mejora la calidad de tu sueño y establece mejores hábitos de sueño",
       },
       thumbnail: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=400&h=300&fit=crop",
+      icon: "moon",
       order: 3,
     });
     console.log("Created Sleep box");
@@ -546,7 +554,7 @@ async function migrate() {
     for (const user of users) {
       for (const experimentId of insertedExperimentIds) {
         await subscriptionsCol.insertOne({
-          userId: user.id,
+          userId: user._id.toString(),
           experimentId,
           status: "offered",
           offeredAt: now,

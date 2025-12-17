@@ -17,7 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/lib/auth-context";
 import { getLocalized, useLanguage } from "@/lib/language-context";
 import { getJournalEntriesByDate } from "@/server/rpc/journal";
-import type { InputBlock, SelectBlock } from "@/types/shared";
+import type { InputBlock } from "@/types/shared";
 
 export const Route = createFileRoute("/_app/journal")({
   component: JournalPage,
@@ -177,11 +177,11 @@ function JournalPage() {
             },
           );
 
-          // Get input/select blocks that have responses
+          // Get input blocks that have responses
           const inputBlocks =
             task.blocks?.filter(
-              (b): b is InputBlock | SelectBlock =>
-                (b.type === "input" || b.type === "select") &&
+              (b): b is InputBlock =>
+                (b.type === "text" || b.type === "number" || b.type === "select") &&
                 !!entry.responses?.[b.id],
             ) || [];
 

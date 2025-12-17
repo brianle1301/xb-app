@@ -258,8 +258,7 @@ function TodayPage() {
                       );
                     }
 
-                    if (block.type === "input") {
-                      const isTextarea = block.inputType === "textarea";
+                    if (block.type === "text") {
                       return (
                         <Field key={index}>
                           <FieldLabel>
@@ -268,40 +267,55 @@ function TodayPage() {
                               <span className="text-destructive ml-1">*</span>
                             )}
                           </FieldLabel>
-                          {isTextarea ? (
-                            <Textarea
-                              value={formResponses[block.id] || ""}
-                              onChange={(e) =>
-                                setFormResponses((prev) => ({
-                                  ...prev,
-                                  [block.id]: e.target.value,
-                                }))
-                              }
-                              placeholder={
-                                block.placeholder
-                                  ? getLocalized(block.placeholder, language)
-                                  : undefined
-                              }
-                              disabled={!!selectedTaskCompleted}
-                            />
-                          ) : (
-                            <Input
-                              type={block.inputType || "text"}
-                              value={formResponses[block.id] || ""}
-                              onChange={(e) =>
-                                setFormResponses((prev) => ({
-                                  ...prev,
-                                  [block.id]: e.target.value,
-                                }))
-                              }
-                              placeholder={
-                                block.placeholder
-                                  ? getLocalized(block.placeholder, language)
-                                  : undefined
-                              }
-                              disabled={!!selectedTaskCompleted}
-                            />
+                          <Textarea
+                            value={formResponses[block.id] || ""}
+                            onChange={(e) =>
+                              setFormResponses((prev) => ({
+                                ...prev,
+                                [block.id]: e.target.value,
+                              }))
+                            }
+                            placeholder={
+                              block.placeholder
+                                ? getLocalized(block.placeholder, language)
+                                : undefined
+                            }
+                            disabled={!!selectedTaskCompleted}
+                          />
+                          {block.helpText && (
+                            <FieldDescription>
+                              {getLocalized(block.helpText, language)}
+                            </FieldDescription>
                           )}
+                        </Field>
+                      );
+                    }
+
+                    if (block.type === "number") {
+                      return (
+                        <Field key={index}>
+                          <FieldLabel>
+                            {getLocalized(block.label, language)}
+                            {block.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </FieldLabel>
+                          <Input
+                            type="number"
+                            value={formResponses[block.id] || ""}
+                            onChange={(e) =>
+                              setFormResponses((prev) => ({
+                                ...prev,
+                                [block.id]: e.target.value,
+                              }))
+                            }
+                            placeholder={
+                              block.placeholder
+                                ? getLocalized(block.placeholder, language)
+                                : undefined
+                            }
+                            disabled={!!selectedTaskCompleted}
+                          />
                           {block.helpText && (
                             <FieldDescription>
                               {getLocalized(block.helpText, language)}
@@ -373,7 +387,7 @@ function TodayPage() {
                       const requiredBlocks =
                         selectedTask.blocks?.filter(
                           (b): b is Block & { id: string; required: true } =>
-                            (b.type === "input" || b.type === "select") &&
+                            (b.type === "text" || b.type === "number" || b.type === "select") &&
                             !!b.required,
                         ) || [];
                       const missingRequired = requiredBlocks.some(

@@ -17,13 +17,12 @@ export interface SelectOptionDoc {
 }
 
 export interface BlockDoc {
-  type: "markdown" | "input" | "select";
+  type: "markdown" | "text" | "number" | "select";
   content?: { en?: string; es?: string };
   id?: string;
   label?: { en?: string; es?: string };
   helpText?: { en?: string; es?: string };
   required?: boolean;
-  inputType?: "text" | "number" | "textarea";
   placeholder?: { en?: string; es?: string };
   options?: SelectOptionDoc[];
 }
@@ -58,6 +57,7 @@ export interface BoxDoc {
   name: LocalizedText;
   description: LocalizedText;
   thumbnail: string;
+  icon: string;
   order: number;
 }
 

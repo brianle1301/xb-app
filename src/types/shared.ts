@@ -30,13 +30,21 @@ export interface MarkdownBlock {
   content: OptionalLocalizedText;
 }
 
-export interface InputBlock {
-  type: "input";
+export interface TextBlock {
+  type: "text";
   id: string;
   label: LocalizedText;
   helpText?: LocalizedText;
   required?: boolean;
-  inputType?: "text" | "number" | "textarea";
+  placeholder?: LocalizedText;
+}
+
+export interface NumberBlock {
+  type: "number";
+  id: string;
+  label: LocalizedText;
+  helpText?: LocalizedText;
+  required?: boolean;
   placeholder?: LocalizedText;
 }
 
@@ -49,7 +57,10 @@ export interface SelectBlock {
   options: SelectOption[];
 }
 
-export type Block = MarkdownBlock | InputBlock | SelectBlock;
+export type Block = MarkdownBlock | TextBlock | NumberBlock | SelectBlock;
+
+// Helper type for blocks that collect user input
+export type InputBlock = TextBlock | NumberBlock | SelectBlock;
 
 // Content-only block (no inputs) for overviews
 export type ContentBlock = MarkdownBlock;

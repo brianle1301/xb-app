@@ -41,26 +41,64 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           // Custom renderer for paragraphs to detect YouTube links
           p: ({ children, ...props }) => {
             const childrenArray = React.Children.toArray(children);
-            const textContent = childrenArray
-              .map((child) => {
-                if (typeof child === "string") {
-                  return child;
-                }
-                if (
-                  typeof child === "object" &&
-                  child !== null &&
-                  "props" in child
-                ) {
-                  const childWithProps = child as { props: { children?: string } };
-                  return childWithProps.props.children || "";
-                }
-                return "";
-              })
-              .join("");
-
             const youtubeRegex = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$/;
-            if (youtubeRegex.test(textContent.trim())) {
-              return <YouTubeEmbed url={textContent.trim()} />;
+
+            // Helper to extract YouTube URL from a child element
+            const getYouTubeUrl = (child: unknown): string | null => {
+              if (
+                typeof child === "object" &&
+                child !== null &&
+                "props" in child
+              ) {
+                const childElement = child as { props?: { href?: string } };
+                const href = childElement.props?.href;
+                if (href && youtubeRegex.test(href)) {
+                  return href;
+                }
+              }
+              return null;
+            };
+
+            // Check if paragraph contains only a single YouTube link (as text or anchor)
+            if (childrenArray.length === 1) {
+              const child = childrenArray[0];
+
+              // Case 1: Plain text YouTube URL
+              if (typeof child === "string" && youtubeRegex.test(child.trim())) {
+                return <YouTubeEmbed url={child.trim()} />;
+              }
+
+              // Case 2: YouTube URL wrapped in an anchor tag (markdown link)
+              const url = getYouTubeUrl(child);
+              if (url) {
+                return <YouTubeEmbed url={url} />;
+              }
+            }
+
+            // Case 3: YouTube link appears inline with other content
+            // Find YouTube links and render them as embeds after the paragraph
+            const youtubeLinks: string[] = [];
+            const processedChildren = childrenArray.map((child) => {
+              const url = getYouTubeUrl(child);
+              if (url) {
+                youtubeLinks.push(url);
+                // Return null to remove the link from inline content
+                return null;
+              }
+              return child;
+            }).filter(Boolean);
+
+            if (youtubeLinks.length > 0) {
+              return (
+                <>
+                  {processedChildren.length > 0 && (
+                    <p {...props}>{processedChildren}</p>
+                  )}
+                  {youtubeLinks.map((url, index) => (
+                    <YouTubeEmbed key={index} url={url} />
+                  ))}
+                </>
+              );
             }
 
             return <p {...props}>{children}</p>;

@@ -4,7 +4,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Check, ChevronRight, Play, Undo2 } from "lucide-react";
 
 import { DynamicIcon } from "@/components/ui/dynamic-icon";
@@ -155,15 +155,7 @@ function BoxExperimentsPage() {
     isTaskCompleted(selectedSubscriptionId, selectedTask._id, selectedDayNumber);
 
   return (
-    <div className="container max-w-screen-sm mx-auto px-4 py-6">
-      <Link
-        to="/experiments"
-        className="flex items-center gap-2 text-primary mb-4 hover:underline"
-      >
-        <ChevronRight className="w-4 h-4 rotate-180" />
-        Back to boxes
-      </Link>
-
+    <div className="pt-6">
       <div className="flex items-center gap-4 mb-6">
         {box?.thumbnail?.startsWith("http") ? (
           <img
@@ -432,8 +424,7 @@ function BoxExperimentsPage() {
                       );
                     }
 
-                    if (block.type === "input") {
-                      const isTextarea = block.inputType === "textarea";
+                    if (block.type === "text") {
                       return (
                         <Field key={index}>
                           <FieldLabel>
@@ -442,44 +433,59 @@ function BoxExperimentsPage() {
                               <span className="text-destructive ml-1">*</span>
                             )}
                           </FieldLabel>
-                          {isTextarea ? (
-                            <Textarea
-                              value={formResponses[block.id] || ""}
-                              onChange={(e) =>
-                                setFormResponses((prev) => ({
-                                  ...prev,
-                                  [block.id]: e.target.value,
-                                }))
-                              }
-                              placeholder={
-                                block.placeholder
-                                  ? getLocalized(block.placeholder, language)
-                                  : undefined
-                              }
-                              disabled={
-                                !!selectedTaskCompleted || !selectedSubscriptionId
-                              }
-                            />
-                          ) : (
-                            <Input
-                              type={block.inputType || "text"}
-                              value={formResponses[block.id] || ""}
-                              onChange={(e) =>
-                                setFormResponses((prev) => ({
-                                  ...prev,
-                                  [block.id]: e.target.value,
-                                }))
-                              }
-                              placeholder={
-                                block.placeholder
-                                  ? getLocalized(block.placeholder, language)
-                                  : undefined
-                              }
-                              disabled={
-                                !!selectedTaskCompleted || !selectedSubscriptionId
-                              }
-                            />
+                          <Textarea
+                            value={formResponses[block.id] || ""}
+                            onChange={(e) =>
+                              setFormResponses((prev) => ({
+                                ...prev,
+                                [block.id]: e.target.value,
+                              }))
+                            }
+                            placeholder={
+                              block.placeholder
+                                ? getLocalized(block.placeholder, language)
+                                : undefined
+                            }
+                            disabled={
+                              !!selectedTaskCompleted || !selectedSubscriptionId
+                            }
+                          />
+                          {block.helpText && (
+                            <FieldDescription>
+                              {getLocalized(block.helpText, language)}
+                            </FieldDescription>
                           )}
+                        </Field>
+                      );
+                    }
+
+                    if (block.type === "number") {
+                      return (
+                        <Field key={index}>
+                          <FieldLabel>
+                            {getLocalized(block.label, language)}
+                            {block.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </FieldLabel>
+                          <Input
+                            type="number"
+                            value={formResponses[block.id] || ""}
+                            onChange={(e) =>
+                              setFormResponses((prev) => ({
+                                ...prev,
+                                [block.id]: e.target.value,
+                              }))
+                            }
+                            placeholder={
+                              block.placeholder
+                                ? getLocalized(block.placeholder, language)
+                                : undefined
+                            }
+                            disabled={
+                              !!selectedTaskCompleted || !selectedSubscriptionId
+                            }
+                          />
                           {block.helpText && (
                             <FieldDescription>
                               {getLocalized(block.helpText, language)}
@@ -553,7 +559,7 @@ function BoxExperimentsPage() {
                       const requiredBlocks =
                         selectedTask.blocks?.filter(
                           (b): b is Block & { id: string; required: true } =>
-                            (b.type === "input" || b.type === "select") &&
+                            (b.type === "text" || b.type === "number" || b.type === "select") &&
                             !!b.required,
                         ) || [];
                       const missingRequired = requiredBlocks.some(

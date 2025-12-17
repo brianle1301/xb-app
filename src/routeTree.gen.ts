@@ -17,6 +17,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppExperimentsRouteImport } from './routes/_app/experiments'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AppBoxesBoxIdRouteImport } from './routes/_app/boxes/$boxId'
 import { Route as AppBoxesBoxIdExperimentsRouteImport } from './routes/_app/boxes/$boxId.experiments'
 
 const LoginRoute = LoginRouteImport.update({
@@ -58,11 +59,16 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppBoxesBoxIdRoute = AppBoxesBoxIdRouteImport.update({
+  id: '/boxes/$boxId',
+  path: '/boxes/$boxId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBoxesBoxIdExperimentsRoute =
   AppBoxesBoxIdExperimentsRouteImport.update({
-    id: '/boxes/$boxId/experiments',
-    path: '/boxes/$boxId/experiments',
-    getParentRoute: () => AppRoute,
+    id: '/experiments',
+    path: '/experiments',
+    getParentRoute: () => AppBoxesBoxIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/journal': typeof AppJournalRoute
   '/settings': typeof AppSettingsRoute
   '/today': typeof AppTodayRoute
+  '/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
 }
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/journal': typeof AppJournalRoute
   '/settings': typeof AppSettingsRoute
   '/today': typeof AppTodayRoute
+  '/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
 }
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_app/journal': typeof AppJournalRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/today': typeof AppTodayRoute
+  '/_app/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_app/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
 }
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/settings'
     | '/today'
+    | '/boxes/$boxId'
     | '/api/auth/$'
     | '/boxes/$boxId/experiments'
   fileRoutesByTo: FileRoutesByTo
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/settings'
     | '/today'
+    | '/boxes/$boxId'
     | '/api/auth/$'
     | '/boxes/$boxId/experiments'
   id:
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_app/journal'
     | '/_app/settings'
     | '/_app/today'
+    | '/_app/boxes/$boxId'
     | '/api/auth/$'
     | '/_app/boxes/$boxId/experiments'
   fileRoutesById: FileRoutesById
@@ -196,22 +208,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/boxes/$boxId': {
+      id: '/_app/boxes/$boxId'
+      path: '/boxes/$boxId'
+      fullPath: '/boxes/$boxId'
+      preLoaderRoute: typeof AppBoxesBoxIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/boxes/$boxId/experiments': {
       id: '/_app/boxes/$boxId/experiments'
-      path: '/boxes/$boxId/experiments'
+      path: '/experiments'
       fullPath: '/boxes/$boxId/experiments'
       preLoaderRoute: typeof AppBoxesBoxIdExperimentsRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppBoxesBoxIdRoute
     }
   }
 }
+
+interface AppBoxesBoxIdRouteChildren {
+  AppBoxesBoxIdExperimentsRoute: typeof AppBoxesBoxIdExperimentsRoute
+}
+
+const AppBoxesBoxIdRouteChildren: AppBoxesBoxIdRouteChildren = {
+  AppBoxesBoxIdExperimentsRoute: AppBoxesBoxIdExperimentsRoute,
+}
+
+const AppBoxesBoxIdRouteWithChildren = AppBoxesBoxIdRoute._addFileChildren(
+  AppBoxesBoxIdRouteChildren,
+)
 
 interface AppRouteChildren {
   AppExperimentsRoute: typeof AppExperimentsRoute
   AppJournalRoute: typeof AppJournalRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTodayRoute: typeof AppTodayRoute
-  AppBoxesBoxIdExperimentsRoute: typeof AppBoxesBoxIdExperimentsRoute
+  AppBoxesBoxIdRoute: typeof AppBoxesBoxIdRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -219,7 +250,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTodayRoute: AppTodayRoute,
-  AppBoxesBoxIdExperimentsRoute: AppBoxesBoxIdExperimentsRoute,
+  AppBoxesBoxIdRoute: AppBoxesBoxIdRouteWithChildren,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -86,9 +86,9 @@ function serializeBlock(doc: BlockDoc): Block {
     };
   }
 
-  if (doc.type === "input") {
+  if (doc.type === "text" || doc.type === "number") {
     return {
-      type: "input",
+      type: doc.type,
       id: doc.id!,
       label: {
         en: doc.label?.en || "",
@@ -98,7 +98,6 @@ function serializeBlock(doc: BlockDoc): Block {
         ? { en: doc.helpText.en || "", es: doc.helpText.es || "" }
         : undefined,
       required: doc.required,
-      inputType: doc.inputType!,
       placeholder: doc.placeholder
         ? { en: doc.placeholder.en || "", es: doc.placeholder.es || "" }
         : undefined,

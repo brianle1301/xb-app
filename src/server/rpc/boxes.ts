@@ -13,6 +13,7 @@ export interface Box {
   name: LocalizedText;
   description: LocalizedText;
   thumbnail: string;
+  icon: string;
   order: number;
 }
 
@@ -30,6 +31,7 @@ export function serializeBox(doc: BoxDoc): Box {
       es: doc.description.es,
     },
     thumbnail: doc.thumbnail,
+    icon: doc.icon,
     order: doc.order,
   };
 }
