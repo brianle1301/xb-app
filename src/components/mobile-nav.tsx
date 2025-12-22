@@ -21,7 +21,7 @@ const navItems = [
   },
   {
     to: "/journal",
-    label: "Journal",
+    label: "Log",
     icon: Calendar,
   },
   {
