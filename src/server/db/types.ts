@@ -58,21 +58,23 @@ export interface BoxDoc {
   description: LocalizedText;
   thumbnail: string;
   icon: string;
-  order: number;
+  status: "draft" | "published";
 }
 
 export interface ExperimentDoc {
   _id: ObjectId;
   name: LocalizedText;
-  description: LocalizedText;
-  boxId: ObjectId;
+  boxId?: ObjectId;
   overviews?: OverviewDoc[];
   days: ExperimentDayDoc[];
+  status: "draft" | "published";
 }
 
-// For populated experiment (with box data)
-export interface ExperimentWithBoxDoc extends Omit<ExperimentDoc, "boxId"> {
-  boxId: BoxDoc;
+export interface TaskCompletionEntry {
+  taskId: ObjectId;
+  dayNumber: number;
+  completedAt: Date;
+  responses?: Record<string, string>;
 }
 
 export interface SubscriptionDoc {
@@ -83,13 +85,9 @@ export interface SubscriptionDoc {
   offeredAt: Date;
   startedAt?: Date;
   endedAt?: Date;
+  completions: TaskCompletionEntry[];
   createdAt: Date;
   updatedAt: Date;
-}
-
-// For populated subscription (with experiment and box data)
-export interface SubscriptionWithExperimentDoc extends Omit<SubscriptionDoc, "experimentId"> {
-  experimentId: ExperimentWithBoxDoc;
 }
 
 export interface JournalEntryDoc {
@@ -109,15 +107,4 @@ export interface JournalEntryDoc {
 export interface JournalEntryWithPopulatedDoc extends Omit<JournalEntryDoc, "experimentId" | "taskId"> {
   experimentId: ExperimentDoc;
   taskId: TaskDoc;
-}
-
-export interface TaskCompletionDoc {
-  _id: ObjectId;
-  userId: string;
-  subscriptionId: ObjectId;
-  taskId: ObjectId;
-  dayNumber: number;
-  completedAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
 }

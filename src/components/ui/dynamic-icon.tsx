@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 // Map of icon names to components
-const iconMap: Record<string, React.ComponentType<LucideProps>> = {
+export const iconMap: Record<string, React.ComponentType<LucideProps>> = {
   apple: Apple,
   "book-open": BookOpen,
   "check-circle": CheckCircle,

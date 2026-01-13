@@ -3,9 +3,11 @@ import { ObjectId } from "mongodb";
 
 import type { Task } from "@/types/shared";
 
+import { authMiddleware } from "./auth";
+import { type Experiment, serializeExperiment, serializeTask } from "./experiments";
+
 import { getExperiments, getJournalEntries } from "../db/client";
 import type { ExperimentDoc, TaskDoc } from "../db/types";
-import { type Experiment, serializeExperiment, serializeTask } from "./experiments";
 
 // ============ Types ============
 
@@ -45,9 +47,11 @@ function findTaskInExperiment(experiment: ExperimentDoc, taskId: ObjectId): Task
 // ============ RPC Functions ============
 
 export const getJournalEntriesByDate = createServerFn({ method: "POST" })
-  .inputValidator((data: { userId: string; date: string }) => data)
+  .middleware([authMiddleware])
+  .inputValidator((data: { date: string }) => data)
   .handler(
-    async ({ data: { userId, date: dateStr } }): Promise<JournalEntryWithDetails[]> => {
+    async ({ data: { date: dateStr }, context }): Promise<JournalEntryWithDetails[]> => {
+      const userId = context.user.id;
       const date = new Date(dateStr);
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);

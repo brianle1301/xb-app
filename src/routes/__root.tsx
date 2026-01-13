@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
+import { Toaster } from "@/components/ui/sonner";
 import appCSS from "@/index.css?url";
 import { ThemeProvider } from "@/lib/theme-context";
 
@@ -43,6 +44,7 @@ function RouteComponent() {
           <Outlet />
           <TanStackRouterDevtools position="bottom-right" />
           <ReactQueryDevtools buttonPosition="bottom-left" />
+          <Toaster />
         </ThemeProvider>
         <Scripts />
       </body>

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { ObjectId } from "mongodb";
+import { z } from "zod";
 
 import type {
   Block,
@@ -11,35 +12,83 @@ import type {
   Task,
 } from "@/types/shared";
 
+import { adminMiddleware } from "./auth";
 import { type Box, serializeBox } from "./boxes";
 
-import { getBoxes, getExperiments } from "../db/client";
+import { getExperiments, getSubscriptions } from "../db/client";
 import type {
   BlockDoc,
+  BoxDoc,
   ContentBlockDoc,
   ExperimentDayDoc,
   ExperimentDoc,
-  ExperimentWithBoxDoc,
   OverviewDoc,
   SelectOptionDoc,
   TaskDoc,
 } from "../db/types";
 
+// ============ Validation ============
+
+export const publishedExperimentSchema = z.object({
+  name: z.object({
+    en: z.string().min(1, "English name is required"),
+    es: z.string().min(1, "Spanish name is required"),
+  }),
+  boxId: z.custom((val) => val != null, "A box must be selected"),
+  days: z
+    .array(
+      z.object({
+        dayNumber: z.number(),
+        tasks: z
+          .array(
+            z.object({
+              name: z.object({
+                en: z.string().min(1, "Task English name is required"),
+                es: z.string().min(1, "Task Spanish name is required"),
+              }),
+            })
+          )
+          .min(1, "Each day must have at least one task"),
+      })
+    )
+    .min(1, "At least one day is required"),
+});
+
+function validateForPublish(experiment: ExperimentDoc) {
+  const result = publishedExperimentSchema.safeParse(experiment);
+  if (!result.success) {
+    const errors = result.error.issues.map((e) => e.message).join(", ");
+    throw new Error(`Cannot publish: ${errors}`);
+  }
+}
+
 // ============ Types ============
 
-export interface Experiment {
+export type ExperimentStatus = "draft" | "published";
+
+// Base experiment fields shared between draft and published
+interface BaseExperiment {
   _id: string;
   name: LocalizedText;
-  description: LocalizedText;
-  boxId: string;
   overviews?: Overview[];
   days: ExperimentDay[];
 }
 
-// Experiment with populated box
-export interface ExperimentWithBox extends Omit<Experiment, "boxId"> {
-  boxId: Box;
+// Draft experiment - boxId is optional
+export interface DraftExperiment extends BaseExperiment {
+  status: "draft";
+  boxId?: string;
 }
+
+// Published experiment - boxId is required
+export interface PublishedExperiment extends BaseExperiment {
+  status: "published";
+  boxId: string;
+}
+
+// Union type for any experiment (used by admin)
+export type Experiment = DraftExperiment | PublishedExperiment;
+
 
 // ============ Serialization ============
 
@@ -140,70 +189,221 @@ function serializeExperimentDay(doc: ExperimentDayDoc): ExperimentDay {
 }
 
 export function serializeExperiment(doc: ExperimentDoc): Experiment {
-  return {
+  const base = {
     _id: doc._id.toString(),
     name: {
       en: doc.name.en,
       es: doc.name.es,
     },
-    description: {
-      en: doc.description.en,
-      es: doc.description.es,
-    },
-    boxId: doc.boxId.toString(),
     overviews: doc.overviews?.map(serializeOverview),
     days: doc.days.map(serializeExperimentDay),
   };
+
+  if (doc.status === "published") {
+    return {
+      ...base,
+      status: "published",
+      boxId: doc.boxId!.toString(),
+    } as PublishedExperiment;
+  }
+
+  return {
+    ...base,
+    status: "draft",
+    ...(doc.boxId && { boxId: doc.boxId.toString() }),
+  } as DraftExperiment;
 }
 
-export function serializeExperimentWithBox(
-  doc: ExperimentWithBoxDoc
-): ExperimentWithBox {
+
+// ============ Admin RPC Functions ============
+
+interface OverviewInput {
+  _id?: string;
+  title: LocalizedText;
+  thumbnail: string;
+  blocks?: Array<{ type: "markdown"; content: { en?: string; es?: string } }>;
+}
+
+interface SelectOptionInput {
+  value: string;
+  label: { en: string; es: string };
+}
+
+type BlockInput =
+  | { type: "markdown"; content: { en?: string; es?: string } }
+  | {
+      type: "text";
+      id: string;
+      label: { en: string; es: string };
+      helpText?: { en: string; es: string };
+      placeholder?: { en: string; es: string };
+      required?: boolean;
+    }
+  | {
+      type: "number";
+      id: string;
+      label: { en: string; es: string };
+      helpText?: { en: string; es: string };
+      placeholder?: { en: string; es: string };
+      required?: boolean;
+    }
+  | {
+      type: "select";
+      id: string;
+      label: { en: string; es: string };
+      helpText?: { en: string; es: string };
+      required?: boolean;
+      options: SelectOptionInput[];
+    };
+
+interface TaskInput {
+  _id?: string;
+  name: LocalizedText;
+  icon: string;
+  blocks?: BlockInput[];
+}
+
+interface DayInput {
+  dayNumber: number;
+  tasks: TaskInput[];
+}
+
+interface CreateExperimentInput {
+  name: LocalizedText;
+  boxId?: string;
+  overviews?: OverviewInput[];
+  days?: DayInput[];
+}
+
+// Helper to check if a string is a valid ObjectId
+const isValidObjectId = (id?: string) => id && /^[a-f\d]{24}$/i.test(id);
+
+// Helper to convert overview input to doc format
+function overviewInputToDoc(o: OverviewInput): OverviewDoc {
   return {
-    _id: doc._id.toString(),
-    name: {
-      en: doc.name.en,
-      es: doc.name.es,
-    },
-    description: {
-      en: doc.description.en,
-      es: doc.description.es,
-    },
-    boxId: serializeBox(doc.boxId),
-    overviews: doc.overviews?.map(serializeOverview),
-    days: doc.days.map(serializeExperimentDay),
+    _id: isValidObjectId(o._id) ? new ObjectId(o._id) : new ObjectId(),
+    title: o.title,
+    thumbnail: o.thumbnail,
+    blocks: o.blocks?.map((b) => ({
+      type: b.type,
+      content: b.content,
+    })),
   };
 }
 
-// ============ Helpers ============
-
-// Helper to populate box in experiment
-async function populateExperimentWithBox(
-  experiment: ExperimentDoc
-): Promise<ExperimentWithBoxDoc | null> {
-  const boxes = await getBoxes();
-  const box = await boxes.findOne({ _id: experiment.boxId });
-  if (!box) return null;
-
+// Helper to convert block input to doc format
+function blockInputToDoc(b: BlockInput): BlockDoc {
+  if (b.type === "markdown") {
+    return {
+      type: "markdown",
+      content: b.content,
+    };
+  }
+  if (b.type === "text" || b.type === "number") {
+    return {
+      type: b.type,
+      id: b.id,
+      label: b.label,
+      helpText: b.helpText,
+      placeholder: b.placeholder,
+      required: b.required,
+    };
+  }
+  // select
   return {
-    ...experiment,
-    boxId: box,
+    type: "select",
+    id: b.id,
+    label: b.label,
+    helpText: b.helpText,
+    required: b.required,
+    options: b.options.map((opt) => ({
+      value: opt.value,
+      label: opt.label,
+    })),
   };
 }
 
-// ============ RPC Functions ============
+// Helper to convert day input to doc format
+function dayInputToDoc(d: DayInput): ExperimentDayDoc {
+  return {
+    dayNumber: d.dayNumber,
+    tasks: d.tasks.map((t) => ({
+      _id: isValidObjectId(t._id) ? new ObjectId(t._id) : new ObjectId(),
+      name: t.name,
+      icon: t.icon,
+      blocks: t.blocks?.map(blockInputToDoc),
+    })),
+  };
+}
 
-export const listExperimentsByBox = createServerFn({ method: "POST" })
-  .inputValidator((data: string) => data)
-  .handler(async ({ data: boxId }): Promise<Experiment[]> => {
+export const createExperiment = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .inputValidator((data: CreateExperimentInput) => data)
+  .handler(async ({ data }): Promise<Experiment> => {
     const experiments = await getExperiments();
-    const docs = await experiments
-      .find({ boxId: new ObjectId(boxId) })
-      .toArray();
-    return docs.map(serializeExperiment);
+    const overviewDocs = data.overviews?.map(overviewInputToDoc) ?? [];
+    const dayDocs = data.days?.map(dayInputToDoc) ?? [];
+
+    const result = await experiments.insertOne({
+      name: data.name,
+      ...(data.boxId && { boxId: new ObjectId(data.boxId) }),
+      overviews: overviewDocs,
+      days: dayDocs,
+      status: "draft",
+    } as ExperimentDoc);
+    const inserted = await experiments.findOne({ _id: result.insertedId });
+    return serializeExperiment(inserted!);
   });
 
+interface UpdateExperimentInput {
+  _id: string;
+  name: LocalizedText;
+  boxId?: string;
+  overviews?: OverviewInput[];
+  days?: DayInput[];
+}
+
+export const updateExperiment = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .inputValidator((data: UpdateExperimentInput) => data)
+  .handler(async ({ data }): Promise<Experiment> => {
+    const experiments = await getExperiments();
+    const experiment = await experiments.findOne({ _id: new ObjectId(data._id) });
+    if (!experiment) {
+      throw new Error("Experiment not found");
+    }
+
+    const overviewDocs = data.overviews?.map(overviewInputToDoc);
+    const dayDocs = data.days?.map(dayInputToDoc);
+
+    // If published, validate the new data
+    if (experiment.status === "published") {
+      validateForPublish({
+        ...experiment,
+        name: data.name,
+        ...(data.boxId !== undefined && { boxId: new ObjectId(data.boxId) }),
+        ...(dayDocs !== undefined && { days: dayDocs }),
+      });
+    }
+
+    const updated = await experiments.findOneAndUpdate(
+      { _id: new ObjectId(data._id) },
+      {
+        $set: {
+          name: data.name,
+          ...(data.boxId !== undefined && { boxId: new ObjectId(data.boxId) }),
+          ...(overviewDocs !== undefined && { overviews: overviewDocs }),
+          ...(dayDocs !== undefined && { days: dayDocs }),
+        },
+      },
+      { returnDocument: "after" },
+    );
+    return serializeExperiment(updated!);
+  });
+
+// For admin - get single experiment
 export const getExperiment = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
   .inputValidator((data: string) => data)
   .handler(async ({ data: experimentId }): Promise<Experiment> => {
     const experiments = await getExperiments();
@@ -216,12 +416,115 @@ export const getExperiment = createServerFn({ method: "POST" })
     return serializeExperiment(experiment);
   });
 
-export const listAllExperiments = createServerFn({ method: "GET" }).handler(
-  async (): Promise<Experiment[]> => {
-    const experiments = await getExperiments();
-    const docs = await experiments.find().toArray();
-    return docs.map(serializeExperiment);
-  }
-);
+// Experiment with box data for display
+export type ExperimentWithBox = Experiment & { box?: Box };
 
-export { populateExperimentWithBox };
+export const listAllExperiments = createServerFn({ method: "GET" })
+  .middleware([adminMiddleware])
+  .handler(async (): Promise<ExperimentWithBox[]> => {
+    const experiments = await getExperiments();
+    const docs = await experiments
+      .aggregate<ExperimentDoc & { box?: BoxDoc[] }>([
+        {
+          $lookup: {
+            from: "boxes",
+            localField: "boxId",
+            foreignField: "_id",
+            as: "box",
+          },
+        },
+      ])
+      .toArray();
+    return docs.map((doc) => ({
+      ...serializeExperiment(doc),
+      ...(doc.box?.[0] && { box: serializeBox(doc.box[0]) }),
+    }));
+  });
+
+// Publish an experiment
+export const publishExperiment = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .inputValidator((data: string) => data)
+  .handler(async ({ data: experimentId }): Promise<Experiment> => {
+    const experiments = await getExperiments();
+    const experiment = await experiments.findOne({
+      _id: new ObjectId(experimentId),
+    });
+    if (!experiment) {
+      throw new Error("Experiment not found");
+    }
+    if (experiment.status !== "draft") {
+      throw new Error("Experiment is already published");
+    }
+    // Validate required fields before publishing
+    validateForPublish(experiment);
+    const updated = await experiments.findOneAndUpdate(
+      { _id: new ObjectId(experimentId) },
+      { $set: { status: "published" } },
+      { returnDocument: "after" }
+    );
+    return serializeExperiment(updated!);
+  });
+
+// Unpublish an experiment
+export const unpublishExperiment = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .inputValidator((data: string) => data)
+  .handler(async ({ data: experimentId }): Promise<Experiment> => {
+    const experiments = await getExperiments();
+    const subscriptions = await getSubscriptions();
+
+    const experiment = await experiments.findOne({
+      _id: new ObjectId(experimentId),
+    });
+    if (!experiment) {
+      throw new Error("Experiment not found");
+    }
+    if (experiment.status !== "published") {
+      throw new Error("Experiment is not published");
+    }
+
+    // Check for active subscriptions (offered or started)
+    const activeSubscriptionCount = await subscriptions.countDocuments({
+      experimentId: new ObjectId(experimentId),
+      status: { $in: ["offered", "started"] },
+    });
+    if (activeSubscriptionCount > 0) {
+      throw new Error(
+        `Cannot unpublish: ${activeSubscriptionCount} active subscription(s) exist for this experiment`,
+      );
+    }
+
+    const updated = await experiments.findOneAndUpdate(
+      { _id: new ObjectId(experimentId) },
+      { $set: { status: "draft" } },
+      { returnDocument: "after" }
+    );
+    return serializeExperiment(updated!);
+  });
+
+// Delete an experiment
+export const deleteExperiment = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .inputValidator((data: string) => data)
+  .handler(async ({ data: experimentId }): Promise<void> => {
+    const experiments = await getExperiments();
+    const subscriptions = await getSubscriptions();
+
+    // Check for any subscriptions linked to this experiment
+    const subscriptionCount = await subscriptions.countDocuments({
+      experimentId: new ObjectId(experimentId),
+    });
+    if (subscriptionCount > 0) {
+      throw new Error(
+        `Cannot delete: ${subscriptionCount} subscription(s) exist for this experiment`,
+      );
+    }
+
+    const result = await experiments.deleteOne({
+      _id: new ObjectId(experimentId),
+    });
+    if (result.deletedCount === 0) {
+      throw new Error("Experiment not found");
+    }
+  });

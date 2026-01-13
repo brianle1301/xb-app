@@ -4,7 +4,6 @@ import { Globe, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { signOut } from "@/lib/auth-client";
-import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 
@@ -14,7 +13,7 @@ export const Route = createFileRoute("/_app/settings")({
 
 function SettingsPage() {
   const { language, setLanguage } = useLanguage();
-  const { user } = useAuth();
+  const { user } = Route.useRouteContext();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -24,9 +23,21 @@ function SettingsPage() {
   };
 
   const themeOptions = [
-    { value: "light" as const, label: language === "es" ? "Claro" : "Light", icon: Sun },
-    { value: "dark" as const, label: language === "es" ? "Oscuro" : "Dark", icon: Moon },
-    { value: "system" as const, label: language === "es" ? "Sistema" : "System", icon: Monitor },
+    {
+      value: "light" as const,
+      label: language === "es" ? "Claro" : "Light",
+      icon: Sun,
+    },
+    {
+      value: "dark" as const,
+      label: language === "es" ? "Oscuro" : "Dark",
+      icon: Moon,
+    },
+    {
+      value: "system" as const,
+      label: language === "es" ? "Sistema" : "System",
+      icon: Monitor,
+    },
   ];
 
   const languageOptions = [
@@ -35,7 +46,7 @@ function SettingsPage() {
   ];
 
   return (
-    <div className="container max-w-screen-sm mx-auto px-4 py-6">
+    <div className="w-full max-w-screen-sm mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-6">
         {language === "es" ? "Configuración" : "Settings"}
       </h1>
@@ -85,9 +96,7 @@ function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>
-              {language === "es" ? "Cuenta" : "Account"}
-            </CardTitle>
+            <CardTitle>{language === "es" ? "Cuenta" : "Account"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -96,7 +105,11 @@ function SettingsPage() {
               </p>
               <p className="font-medium">{user?.email}</p>
             </div>
-            <Button variant="outline" onClick={handleSignOut} className="w-full">
+            <Button
+              variant="outline"
+              onClick={handleSignOut}
+              className="w-full"
+            >
               <LogOut className="w-4 h-4 mr-2" />
               {language === "es" ? "Cerrar sesión" : "Sign Out"}
             </Button>

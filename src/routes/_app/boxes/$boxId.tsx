@@ -11,7 +11,7 @@ function BoxLayout() {
   const { boxId } = Route.useParams();
 
   return (
-    <div className="container max-w-screen-sm mx-auto px-4 py-6">
+    <div className="w-full max-w-screen-sm mx-auto px-4 py-6">
       <Link
         to="/experiments"
         className="flex items-center gap-2 text-primary mb-4 hover:underline"

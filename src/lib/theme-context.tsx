@@ -1,9 +1,11 @@
 import React from "react";
 
 type Theme = "light" | "dark" | "system";
+type ResolvedTheme = "light" | "dark";
 
 interface ThemeContextType {
   theme: Theme;
+  resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
 }
 
@@ -17,12 +19,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return "system";
   });
 
+  const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>("light");
+
   React.useEffect(() => {
     const root = document.documentElement;
 
-    const applyTheme = (resolvedTheme: "light" | "dark") => {
+    const applyTheme = (resolved: ResolvedTheme) => {
       root.classList.remove("light", "dark");
-      root.classList.add(resolvedTheme);
+      root.classList.add(resolved);
+      setResolvedTheme(resolved);
     };
 
     if (theme === "system") {
@@ -45,7 +50,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme: handleSetTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme: handleSetTheme }}>
       {children}
     </ThemeContext.Provider>
   );

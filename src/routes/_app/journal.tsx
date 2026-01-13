@@ -5,8 +5,15 @@ import { CalendarDays, CalendarIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { DynamicIcon } from "@/components/ui/dynamic-icon";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardHeaderText,
+  CardLeadingAction,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Drawer,
   DrawerContent,
@@ -14,6 +21,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 import {
   Empty,
   EmptyDescription,
@@ -22,12 +30,15 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
-import { useAuth } from "@/lib/auth-context";
 import { getLocalized, useLanguage } from "@/lib/language-context";
-import { getJournalEntriesByDate } from "@/server/rpc/journal";
+import { journalEntriesByDateQuery } from "@/queries/journal";
 import type { InputBlock } from "@/types/shared";
 
 export const Route = createFileRoute("/_app/journal")({
+  loader: async ({ context }) => {
+    const today = new Date().toISOString().split("T")[0];
+    await context.queryClient.ensureQueryData(journalEntriesByDateQuery(today));
+  },
   component: JournalPage,
   pendingComponent: () => (
     <div className="flex items-center justify-center min-h-screen">
@@ -38,42 +49,42 @@ export const Route = createFileRoute("/_app/journal")({
 
 function JournalPage() {
   const { language } = useLanguage();
-  const { user } = useAuth();
-  const userId = user!.id;
   const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = React.useState(false);
 
   const today = new Date();
   const dateStr = selectedDate.toISOString().split("T")[0];
 
-  const { data: entries } = useSuspenseQuery({
-    queryKey: ["journal", userId, dateStr],
-    queryFn: () => getJournalEntriesByDate({ data: { userId, date: dateStr } }),
-  });
+  const { data: entries } = useSuspenseQuery(
+    journalEntriesByDateQuery(dateStr),
+  );
 
   return (
-    <div className="container max-w-screen-sm mx-auto px-4 py-6">
+    <div className="w-full max-w-screen-sm mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-6">Log</h1>
 
       <Drawer open={calendarOpen} onOpenChange={setCalendarOpen}>
         <DrawerTrigger asChild>
           <Button variant="outline" className="w-full justify-start mb-6">
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {selectedDate.toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+            {selectedDate.toLocaleDateString(
+              language === "es" ? "es-ES" : "en-US",
+              {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              },
+            )}
           </Button>
         </DrawerTrigger>
         <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>
-              {language === "es" ? "Seleccionar fecha" : "Select date"}
-            </DrawerTitle>
-          </DrawerHeader>
-          <div className="flex justify-center pb-6">
+          <div className="max-w-screen-sm m-auto container flex flex-col items-center">
+            <DrawerHeader>
+              <DrawerTitle>
+                {language === "es" ? "Seleccionar fecha" : "Select date"}
+              </DrawerTitle>
+            </DrawerHeader>
             <Calendar
               mode="single"
               selected={selectedDate}
@@ -96,9 +107,7 @@ function JournalPage() {
               <CalendarDays className="size-5" />
             </EmptyMedia>
             <EmptyTitle>
-              {language === "es"
-                ? "No hay entradas"
-                : "No entries"}
+              {language === "es" ? "No hay entradas" : "No entries"}
             </EmptyTitle>
             <EmptyDescription>
               {language === "es"
@@ -125,7 +134,9 @@ function JournalPage() {
           const inputBlocks =
             task.blocks?.filter(
               (b): b is InputBlock =>
-                (b.type === "text" || b.type === "number" || b.type === "select") &&
+                (b.type === "text" ||
+                  b.type === "number" ||
+                  b.type === "select") &&
                 !!entry.responses?.[b.id],
             ) || [];
 
@@ -134,22 +145,18 @@ function JournalPage() {
           return (
             <Card key={entry._id}>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <DynamicIcon
-                      name={task.icon}
-                      className="w-6 h-6 text-muted-foreground"
-                    />
-                    <div>
-                      <CardTitle className="text-base">
-                        {getLocalized(task.name, language)}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground">
-                        {getLocalized(experiment.name, language)} • {time}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <CardLeadingAction>
+                  <DynamicIcon
+                    name={task.icon}
+                    className="w-5 h-5 text-muted-foreground"
+                  />
+                </CardLeadingAction>
+                <CardHeaderText>
+                  <CardTitle>{getLocalized(task.name, language)}</CardTitle>
+                  <CardDescription>
+                    {getLocalized(experiment.name, language)} • {time}
+                  </CardDescription>
+                </CardHeaderText>
               </CardHeader>
               {hasResponses && (
                 <CardContent>

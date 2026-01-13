@@ -217,7 +217,7 @@ function parseSelectInput(line: string): ParsedBlock | null {
   );
   if (!selectMatch) return null;
 
-  let label = selectMatch[1].trim().replace(/^["']|["']$/g, "").replace(/:+$/, "");
+  const label = selectMatch[1].trim().replace(/^["']|["']$/g, "").replace(/:+$/, "");
   const optionsStr = selectMatch[2];
 
   // Parse options - they can be quoted strings separated by commas

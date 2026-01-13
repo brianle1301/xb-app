@@ -1,13 +1,13 @@
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
-import { getDB } from "./server/db/client";
+import { getClient } from "./server/db/client";
 
 // Start connecting at server startup
-getDB();
+getClient();
 
 export default createServerEntry({
   async fetch(request) {
-    await getDB();
+    await getClient();
     return handler.fetch(request);
   },
 });

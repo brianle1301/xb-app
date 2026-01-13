@@ -1,10 +1,10 @@
-import { Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { DynamicIcon } from "@/components/ui/dynamic-icon";
-import { cn } from "@/lib/utils";
 import { getLocalized, useLanguage } from "@/lib/language-context";
-import { listBoxes } from "@/server/rpc/boxes";
+import { cn } from "@/lib/utils";
+import { publishedBoxesQuery } from "@/queries/boxes";
 
 interface BoxTabBarProps {
   currentBoxId: string;
@@ -13,10 +13,7 @@ interface BoxTabBarProps {
 export function BoxTabBar({ currentBoxId }: BoxTabBarProps) {
   const { language } = useLanguage();
 
-  const { data: boxes } = useSuspenseQuery({
-    queryKey: ["boxes"],
-    queryFn: () => listBoxes(),
-  });
+  const { data: boxes } = useSuspenseQuery(publishedBoxesQuery());
 
   return (
     <nav className="border-b border-border">

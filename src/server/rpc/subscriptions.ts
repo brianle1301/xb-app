@@ -3,24 +3,39 @@ import { ObjectId } from "mongodb";
 
 import type { Task } from "@/types/shared";
 
-import { getExperiments, getSubscriptions } from "../db/client";
-import type {
-  ExperimentDoc,
-  ExperimentWithBoxDoc,
-  SubscriptionDoc,
-  SubscriptionWithExperimentDoc,
-  TaskDoc,
-} from "../db/types";
+import { adminMiddleware, authMiddleware } from "./auth";
 import {
-  type ExperimentWithBox,
-  populateExperimentWithBox,
-  serializeExperimentWithBox,
+  type PublishedExperiment,
+  serializeExperiment,
   serializeTask,
 } from "./experiments";
 
+import {
+  getClient,
+  getExperiments,
+  getJournalEntries,
+  getSubscriptions,
+} from "../db/client";
+import type {
+  ExperimentDoc,
+  SubscriptionDoc,
+  TaskCompletionEntry,
+} from "../db/types";
+
 // ============ Types ============
 
-export type SubscriptionStatus = "offered" | "started" | "completed" | "abandoned";
+export type SubscriptionStatus =
+  | "offered"
+  | "started"
+  | "completed"
+  | "abandoned";
+
+export interface TaskCompletion {
+  taskId: string;
+  dayNumber: number;
+  completedAt: Date;
+  responses?: Record<string, string>;
+}
 
 export interface Subscription {
   _id: string;
@@ -30,26 +45,39 @@ export interface Subscription {
   offeredAt: Date;
   startedAt?: Date;
   endedAt?: Date;
+  completions: TaskCompletion[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Subscription with populated experiment (and box)
-export interface SubscriptionWithExperiment extends Omit<Subscription, "experimentId"> {
-  experimentId: ExperimentWithBox;
+// Subscription with populated experiment
+export interface SubscriptionWithExperiment extends Omit<
+  Subscription,
+  "experimentId"
+> {
+  experimentId: PublishedExperiment;
   currentDay: number | null;
 }
 
 // Today tasks response
 export interface TodayTasksGroup {
   subscription: Subscription;
-  experiment: ExperimentWithBox;
+  experiment: PublishedExperiment;
   currentDay: number;
   totalDays: number;
   tasks: Task[];
 }
 
 // ============ Serialization ============
+
+function serializeCompletion(entry: TaskCompletionEntry): TaskCompletion {
+  return {
+    taskId: entry.taskId.toString(),
+    dayNumber: entry.dayNumber,
+    completedAt: entry.completedAt,
+    responses: entry.responses,
+  };
+}
 
 function serializeSubscription(doc: SubscriptionDoc): Subscription {
   return {
@@ -60,52 +88,9 @@ function serializeSubscription(doc: SubscriptionDoc): Subscription {
     offeredAt: doc.offeredAt,
     startedAt: doc.startedAt,
     endedAt: doc.endedAt,
+    completions: (doc.completions || []).map(serializeCompletion),
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
-  };
-}
-
-function serializeSubscriptionWithExperiment(
-  doc: SubscriptionWithExperimentDoc,
-  currentDay: number | null,
-): SubscriptionWithExperiment {
-  return {
-    _id: doc._id.toString(),
-    userId: doc.userId,
-    experimentId: serializeExperimentWithBox(doc.experimentId),
-    status: doc.status,
-    offeredAt: doc.offeredAt,
-    startedAt: doc.startedAt,
-    endedAt: doc.endedAt,
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
-    currentDay,
-  };
-}
-
-function serializeTodayTasksGroup(
-  subscription: SubscriptionDoc,
-  experiment: ExperimentWithBoxDoc,
-  currentDay: number,
-  totalDays: number,
-  tasks: TaskDoc[],
-): TodayTasksGroup {
-  return {
-    subscription: {
-      _id: subscription._id.toString(),
-      userId: subscription.userId,
-      experimentId: subscription.experimentId.toString(),
-      status: subscription.status,
-      offeredAt: subscription.offeredAt,
-      startedAt: subscription.startedAt,
-      endedAt: subscription.endedAt,
-      createdAt: subscription.createdAt,
-      updatedAt: subscription.updatedAt,
-    },
-    experiment: serializeExperimentWithBox(experiment),
-    currentDay,
-    totalDays,
-    tasks: tasks.map(serializeTask),
   };
 }
 
@@ -127,60 +112,94 @@ function calculateCurrentDay(startedAt: Date): number {
   return diffDays + 1; // Day 1 is the first day
 }
 
-// Helper to populate subscription with experiment and box
-async function populateSubscription(
-  subscription: SubscriptionDoc,
-): Promise<SubscriptionWithExperimentDoc | null> {
-  const experiments = await getExperiments();
-  const experiment = await experiments.findOne({ _id: subscription.experimentId });
-  if (!experiment) return null;
-
-  const experimentWithBox = await populateExperimentWithBox(experiment);
-  if (!experimentWithBox) return null;
-
-  return {
-    ...subscription,
-    experimentId: experimentWithBox,
-  };
+// Type for aggregation result (subscription with joined experiment)
+interface SubscriptionWithExperimentDoc extends Omit<
+  SubscriptionDoc,
+  "experimentId"
+> {
+  experimentId: SubscriptionDoc["experimentId"];
+  experiment: ExperimentDoc;
 }
 
 // ============ RPC Functions ============
 
-// Get all subscriptions for a user (with experiment details)
-export const getUserSubscriptions = createServerFn({ method: "POST" })
-  .inputValidator((data: string) => data)
-  .handler(async ({ data: userId }): Promise<SubscriptionWithExperiment[]> => {
+// Get all subscriptions for a user (with experiment details) - uses aggregation to avoid N+1
+export const getUserSubscriptions = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<SubscriptionWithExperiment[]> => {
+    const userId = context.user.id;
     const subscriptionsCol = await getSubscriptions();
-    const subscriptions = await subscriptionsCol
-      .find({
-        userId,
-        status: { $in: ["offered", "started"] },
-      })
+
+    // Use aggregation to join subscriptions with experiments in one query
+    const docs = await subscriptionsCol
+      .aggregate<SubscriptionWithExperimentDoc>([
+        {
+          $match: {
+            userId,
+            status: { $in: ["offered", "started"] },
+          },
+        },
+        {
+          $lookup: {
+            from: "experiments",
+            localField: "experimentId",
+            foreignField: "_id",
+            as: "experiment",
+          },
+        },
+        { $unwind: "$experiment" },
+        // Only include subscriptions for published experiments
+        { $match: { "experiment.status": "published" } },
+      ])
       .toArray();
 
-    // Check for started subscriptions that should be marked as completed
     const results: SubscriptionWithExperiment[] = [];
 
-    for (const sub of subscriptions) {
-      const populated = await populateSubscription(sub);
-      if (!populated) continue;
+    for (const doc of docs) {
+      if (doc.status === "started" && doc.startedAt) {
+        const currentDay = calculateCurrentDay(doc.startedAt);
 
-      if (sub.status === "started" && sub.startedAt) {
-        const experiment = populated.experimentId;
-        const currentDay = calculateCurrentDay(sub.startedAt);
-
-        if (currentDay > experiment.days.length) {
+        // Check if experiment is completed
+        if (currentDay > doc.experiment.days.length) {
           // Mark as completed
           await subscriptionsCol.updateOne(
-            { _id: sub._id },
+            { _id: doc._id },
             { $set: { status: "completed", endedAt: new Date() } },
           );
-          continue; // Don't include in active subscriptions
+          continue;
         }
 
-        results.push(serializeSubscriptionWithExperiment(populated, currentDay));
+        results.push({
+          _id: doc._id.toString(),
+          userId: doc.userId,
+          experimentId: serializeExperiment(
+            doc.experiment,
+          ) as PublishedExperiment,
+          status: doc.status,
+          offeredAt: doc.offeredAt,
+          startedAt: doc.startedAt,
+          endedAt: doc.endedAt,
+          completions: (doc.completions || []).map(serializeCompletion),
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+          currentDay,
+        });
       } else {
-        results.push(serializeSubscriptionWithExperiment(populated, null));
+        results.push({
+          _id: doc._id.toString(),
+          userId: doc.userId,
+          experimentId: serializeExperiment(
+            doc.experiment,
+          ) as PublishedExperiment,
+          status: doc.status,
+          offeredAt: doc.offeredAt,
+          startedAt: doc.startedAt,
+          endedAt: doc.endedAt,
+          completions: (doc.completions || []).map(serializeCompletion),
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+          currentDay: null,
+        });
       }
     }
 
@@ -189,6 +208,7 @@ export const getUserSubscriptions = createServerFn({ method: "POST" })
 
 // Start a subscription (transition from offered to started)
 export const startSubscription = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
   .inputValidator((data: { subscriptionId: string }) => data)
   .handler(async ({ data: { subscriptionId } }): Promise<Subscription> => {
     const startedAt = getStartOfDay();
@@ -209,13 +229,20 @@ export const startSubscription = createServerFn({ method: "POST" })
 
 // Abandon a subscription
 export const abandonSubscription = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
   .inputValidator((data: { subscriptionId: string }) => data)
   .handler(async ({ data: { subscriptionId } }): Promise<Subscription> => {
     const subscriptionsCol = await getSubscriptions();
 
     const result = await subscriptionsCol.findOneAndUpdate(
       { _id: new ObjectId(subscriptionId), status: "started" },
-      { $set: { status: "abandoned", endedAt: new Date(), updatedAt: new Date() } },
+      {
+        $set: {
+          status: "abandoned",
+          endedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
       { returnDocument: "after" },
     );
 
@@ -226,47 +253,62 @@ export const abandonSubscription = createServerFn({ method: "POST" })
     return serializeSubscription(result);
   });
 
-// Get today's tasks based on user's active subscriptions
-export const getTodayTasksForUser = createServerFn({ method: "POST" })
-  .inputValidator((data: string) => data)
-  .handler(async ({ data: userId }): Promise<TodayTasksGroup[]> => {
+// Get today's tasks based on user's active subscriptions - uses aggregation
+export const getTodayTasksForUser = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }): Promise<TodayTasksGroup[]> => {
+    const userId = context.user.id;
     const subscriptionsCol = await getSubscriptions();
 
-    // Get all started subscriptions for the user
-    const subscriptions = await subscriptionsCol
-      .find({
-        userId,
-        status: "started",
-      })
+    // Use aggregation to join subscriptions with experiments in one query
+    const docs = await subscriptionsCol
+      .aggregate<SubscriptionWithExperimentDoc>([
+        {
+          $match: {
+            userId,
+            status: "started",
+          },
+        },
+        {
+          $lookup: {
+            from: "experiments",
+            localField: "experimentId",
+            foreignField: "_id",
+            as: "experiment",
+          },
+        },
+        { $unwind: "$experiment" },
+        { $match: { "experiment.status": "published" } },
+      ])
       .toArray();
 
     const results: TodayTasksGroup[] = [];
 
-    for (const sub of subscriptions) {
-      if (!sub.startedAt) continue;
+    for (const doc of docs) {
+      if (!doc.startedAt) continue;
 
-      const populated = await populateSubscription(sub);
-      if (!populated) continue;
-
-      const experiment = populated.experimentId;
-      const currentDay = calculateCurrentDay(sub.startedAt);
+      const currentDay = calculateCurrentDay(doc.startedAt);
 
       // Check if experiment is completed
-      if (currentDay > experiment.days.length) {
+      if (currentDay > doc.experiment.days.length) {
         await subscriptionsCol.updateOne(
-          { _id: sub._id },
+          { _id: doc._id },
           { $set: { status: "completed", endedAt: new Date() } },
         );
         continue;
       }
 
-      // Find the day's tasks (tasks are now inlined in experiment.days)
-      const day = experiment.days.find((d) => d.dayNumber === currentDay);
+      // Find the day's tasks
+      const day = doc.experiment.days.find((d) => d.dayNumber === currentDay);
       if (!day || !day.tasks.length) continue;
 
-      results.push(
-        serializeTodayTasksGroup(sub, experiment, currentDay, experiment.days.length, day.tasks),
-      );
+      results.push({
+        subscription: serializeSubscription(doc as SubscriptionDoc),
+        experiment: serializeExperiment(doc.experiment) as PublishedExperiment,
+        currentDay,
+        totalDays: doc.experiment.days.length,
+        tasks: day.tasks.map(serializeTask),
+      });
     }
 
     return results;
@@ -274,75 +316,312 @@ export const getTodayTasksForUser = createServerFn({ method: "POST" })
 
 // Offer an experiment to a user (creates a new subscription)
 export const offerExperimentToUser = createServerFn({ method: "POST" })
-  .inputValidator((data: { userId: string; experimentId: string }) => data)
-  .handler(async ({ data: { userId, experimentId } }): Promise<Subscription> => {
+  .middleware([authMiddleware])
+  .inputValidator((data: { experimentId: string }) => data)
+  .handler(
+    async ({ data: { experimentId }, context }): Promise<Subscription> => {
+      const userId = context.user.id;
+      const subscriptionsCol = await getSubscriptions();
+
+      // Check if there's already an active subscription
+      const existing = await subscriptionsCol.findOne({
+        userId,
+        experimentId: new ObjectId(experimentId),
+        status: { $in: ["offered", "started"] },
+      });
+
+      if (existing) {
+        throw new Error(
+          "User already has an active subscription for this experiment",
+        );
+      }
+
+      const now = new Date();
+      const result = await subscriptionsCol.insertOne({
+        userId,
+        experimentId: new ObjectId(experimentId),
+        status: "offered",
+        offeredAt: now,
+        completions: [],
+        createdAt: now,
+        updatedAt: now,
+      } as unknown as SubscriptionDoc);
+
+      const subscription = await subscriptionsCol.findOne({
+        _id: result.insertedId,
+      });
+      if (!subscription) {
+        throw new Error("Failed to create subscription");
+      }
+      return serializeSubscription(subscription);
+    },
+  );
+
+// ============ Task Completion Functions ============
+
+// Complete a task
+export const completeTask = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (data: {
+      subscriptionId: string;
+      taskId: string;
+      dayNumber: number;
+      responses?: Record<string, string>;
+    }) => data,
+  )
+  .handler(async ({ data, context }): Promise<TaskCompletion> => {
+    const userId = context.user.id;
+    const client = await getClient();
     const subscriptionsCol = await getSubscriptions();
+    const journalEntriesCol = await getJournalEntries();
+
+    const now = new Date();
+    const taskIdObj = new ObjectId(data.taskId);
+    const subscriptionIdObj = new ObjectId(data.subscriptionId);
+
+    const completion: TaskCompletionEntry = {
+      taskId: taskIdObj,
+      dayNumber: data.dayNumber,
+      completedAt: now,
+      responses: data.responses,
+    };
+
+    const session = client.startSession();
+
+    try {
+      session.startTransaction();
+
+      // Get subscription and remove existing completion for this task/day
+      const subscription = await subscriptionsCol.findOneAndUpdate(
+        { _id: subscriptionIdObj, userId },
+        {
+          $pull: {
+            completions: { taskId: taskIdObj, dayNumber: data.dayNumber },
+          },
+        },
+        { session },
+      );
+
+      if (!subscription) {
+        throw new Error("Subscription not found");
+      }
+
+      // Add the new completion
+      await subscriptionsCol.updateOne(
+        { _id: subscriptionIdObj },
+        {
+          $push: { completions: completion },
+          $set: { updatedAt: now },
+        },
+        { session },
+      );
+
+      // Create or update journal entry
+      await journalEntriesCol.findOneAndUpdate(
+        {
+          userId,
+          subscriptionId: subscriptionIdObj,
+          taskId: taskIdObj,
+          dayNumber: data.dayNumber,
+        },
+        {
+          $set: {
+            userId,
+            subscriptionId: subscriptionIdObj,
+            experimentId: subscription.experimentId,
+            taskId: taskIdObj,
+            dayNumber: data.dayNumber,
+            date: now,
+            responses: data.responses || {},
+            updatedAt: now,
+          },
+          $setOnInsert: {
+            createdAt: now,
+          },
+        },
+        { upsert: true, session },
+      );
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+
+    return serializeCompletion(completion);
+  });
+
+// Uncomplete a task (undo)
+export const uncompleteTask = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (data: { subscriptionId: string; taskId: string; dayNumber: number }) =>
+      data,
+  )
+  .handler(async ({ data, context }): Promise<{ success: boolean }> => {
+    const userId = context.user.id;
+    const client = await getClient();
+    const subscriptionsCol = await getSubscriptions();
+    const journalEntriesCol = await getJournalEntries();
+
+    const taskIdObj = new ObjectId(data.taskId);
+    const subscriptionIdObj = new ObjectId(data.subscriptionId);
+
+    const session = client.startSession();
+
+    try {
+      session.startTransaction();
+
+      // Remove completion from subscription
+      await subscriptionsCol.updateOne(
+        {
+          _id: subscriptionIdObj,
+          userId,
+        },
+        {
+          $pull: {
+            completions: { taskId: taskIdObj, dayNumber: data.dayNumber },
+          },
+          $set: { updatedAt: new Date() },
+        },
+        { session },
+      );
+
+      // Delete journal entry
+      await journalEntriesCol.deleteOne(
+        {
+          userId,
+          subscriptionId: subscriptionIdObj,
+          taskId: taskIdObj,
+          dayNumber: data.dayNumber,
+        },
+        { session },
+      );
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+
+    return { success: true };
+  });
+
+// ============ Admin Subscription Functions ============
+
+// Admin: Get subscriptions for a specific user (with experiment details)
+export const adminGetUserSubscriptions = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .inputValidator((data: string) => data)
+  .handler(async ({ data: userId }): Promise<SubscriptionWithExperiment[]> => {
+    const subscriptionsCol = await getSubscriptions();
+
+    const docs = await subscriptionsCol
+      .aggregate<SubscriptionWithExperimentDoc>([
+        { $match: { userId } },
+        {
+          $lookup: {
+            from: "experiments",
+            localField: "experimentId",
+            foreignField: "_id",
+            as: "experiment",
+          },
+        },
+        { $unwind: "$experiment" },
+        { $sort: { createdAt: -1 } },
+      ])
+      .toArray();
+
+    return docs.map((doc) => {
+      const currentDay =
+        doc.status === "started" && doc.startedAt
+          ? calculateCurrentDay(doc.startedAt)
+          : null;
+
+      return {
+        _id: doc._id.toString(),
+        userId: doc.userId,
+        experimentId: serializeExperiment(doc.experiment) as PublishedExperiment,
+        status: doc.status,
+        offeredAt: doc.offeredAt,
+        startedAt: doc.startedAt,
+        endedAt: doc.endedAt,
+        completions: (doc.completions || []).map(serializeCompletion),
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+        currentDay,
+      };
+    });
+  });
+
+// Admin: Subscribe a user to an experiment
+export const adminSubscribeUser = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .inputValidator((data: { userId: string; experimentId: string }) => data)
+  .handler(async ({ data }): Promise<Subscription> => {
+    const subscriptionsCol = await getSubscriptions();
+    const experimentsCol = await getExperiments();
+
+    // Verify experiment exists and is published
+    const experiment = await experimentsCol.findOne({
+      _id: new ObjectId(data.experimentId),
+      status: "published",
+    });
+
+    if (!experiment) {
+      throw new Error("Experiment not found or not published");
+    }
 
     // Check if there's already an active subscription
     const existing = await subscriptionsCol.findOne({
-      userId,
-      experimentId: new ObjectId(experimentId),
+      userId: data.userId,
+      experimentId: new ObjectId(data.experimentId),
       status: { $in: ["offered", "started"] },
     });
 
     if (existing) {
-      throw new Error("User already has an active subscription for this experiment");
+      throw new Error(
+        "User already has an active subscription for this experiment",
+      );
     }
 
     const now = new Date();
     const result = await subscriptionsCol.insertOne({
-      userId,
-      experimentId: new ObjectId(experimentId),
+      userId: data.userId,
+      experimentId: new ObjectId(data.experimentId),
       status: "offered",
       offeredAt: now,
+      completions: [],
       createdAt: now,
       updatedAt: now,
-    } as SubscriptionDoc);
+    } as unknown as SubscriptionDoc);
 
-    const subscription = await subscriptionsCol.findOne({ _id: result.insertedId });
+    const subscription = await subscriptionsCol.findOne({
+      _id: result.insertedId,
+    });
     if (!subscription) {
       throw new Error("Failed to create subscription");
     }
     return serializeSubscription(subscription);
   });
 
-// Auto-offer all experiments to a user (for initial setup)
-export const offerAllExperimentsToUser = createServerFn({ method: "POST" })
+// Admin: Remove a subscription
+export const adminRemoveSubscription = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
   .inputValidator((data: string) => data)
-  .handler(async ({ data: userId }): Promise<Subscription[]> => {
-    const experimentsCol = await getExperiments();
+  .handler(async ({ data: subscriptionId }): Promise<void> => {
     const subscriptionsCol = await getSubscriptions();
 
-    const experiments = await experimentsCol.find().toArray();
+    const result = await subscriptionsCol.deleteOne({
+      _id: new ObjectId(subscriptionId),
+    });
 
-    const subscriptionIds = await Promise.all(
-      experiments.map(async (experiment: ExperimentDoc) => {
-        const existing = await subscriptionsCol.findOne({
-          userId,
-          experimentId: experiment._id,
-          status: { $in: ["offered", "started"] },
-        });
-
-        if (existing) return existing._id;
-
-        const now = new Date();
-        const result = await subscriptionsCol.insertOne({
-          userId,
-          experimentId: experiment._id,
-          status: "offered",
-          offeredAt: now,
-          createdAt: now,
-          updatedAt: now,
-        } as SubscriptionDoc);
-        return result.insertedId;
-      }),
-    );
-
-    const subscriptions = await subscriptionsCol
-      .find({
-        _id: { $in: subscriptionIds },
-      })
-      .toArray();
-
-    return subscriptions.map(serializeSubscription);
+    if (result.deletedCount === 0) {
+      throw new Error("Subscription not found");
+    }
   });

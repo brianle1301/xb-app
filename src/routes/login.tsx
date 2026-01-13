@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { signIn, signUp } from "@/lib/auth-client";
-import { offerAllExperimentsToUser } from "@/server/rpc/subscriptions";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -42,10 +41,6 @@ function LoginPage() {
           setError(result.error.message ?? "Sign up failed");
           return;
         }
-        // Auto-offer all experiments to new users
-        if (result.data?.user?.id) {
-          await offerAllExperimentsToUser({ data: result.data.user.id });
-        }
       } else {
         const result = await signIn.email({
           email,
@@ -54,12 +49,6 @@ function LoginPage() {
         if (result.error) {
           setError(result.error.message ?? "Sign in failed");
           return;
-        }
-        // Offer any new experiments to existing users
-        const userId =
-          (result as any).data?.user?.id ?? (result as any).user?.id;
-        if (userId) {
-          await offerAllExperimentsToUser({ data: userId });
         }
       }
       navigate({ to: "/today" });
