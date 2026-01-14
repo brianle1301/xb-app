@@ -15,6 +15,7 @@ import {
   CardHeaderTrigger,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
@@ -33,15 +34,11 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldSet,
+  FieldLegend,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { getLocalized } from "@/lib/language-context";
 import type {
@@ -127,11 +124,11 @@ export function TaskList({
               }`}
             >
               {completed ? (
-                <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                <Check className="w-5 h-5 text-green-500 shrink-0" />
               ) : (
                 <DynamicIcon
                   name={task.icon}
-                  className="w-5 h-5 text-muted-foreground flex-shrink-0"
+                  className="w-5 h-5 text-muted-foreground shrink-0"
                 />
               )}
               <span
@@ -141,7 +138,7 @@ export function TaskList({
                   <span className="text-muted-foreground">(Untitled)</span>
                 )}
               </span>
-              <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+              <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
             </button>
           );
         })}
@@ -280,15 +277,78 @@ export function TaskList({
                     }
 
                     if (block.type === "select") {
+                      // For multiple select, store as comma-separated values
+                      const selectedValues = formResponses[block.id]
+                        ? formResponses[block.id].split(",").filter(Boolean)
+                        : [];
+
+                      if (block.multiple) {
+                        // Render checkboxes for multiple selection
+                        return (
+                          <FieldSet key={index}>
+                            <FieldLegend variant="label">
+                              {getLocalized(block.label, language)}
+                              {block.required && (
+                                <span className="text-destructive ml-1">*</span>
+                              )}
+                            </FieldLegend>
+                            {block.helpText && (
+                              <FieldDescription>
+                                {getLocalized(block.helpText, language)}
+                              </FieldDescription>
+                            )}
+                            {block.options.map((option) => {
+                              const isChecked = selectedValues.includes(
+                                option.value,
+                              );
+                              return (
+                                <Field
+                                  key={option.value}
+                                  orientation="horizontal"
+                                >
+                                  <Checkbox
+                                    id={`${block.id}-${option.value}`}
+                                    checked={isChecked}
+                                    onCheckedChange={(checked) => {
+                                      const newValues = checked
+                                        ? [...selectedValues, option.value]
+                                        : selectedValues.filter(
+                                            (v) => v !== option.value,
+                                          );
+                                      setFormResponses((prev) => ({
+                                        ...prev,
+                                        [block.id]: newValues.join(","),
+                                      }));
+                                    }}
+                                    disabled={isDisabled}
+                                  />
+                                  <FieldLabel
+                                    htmlFor={`${block.id}-${option.value}`}
+                                  >
+                                    {getLocalized(option.label, language)}
+                                  </FieldLabel>
+                                </Field>
+                              );
+                            })}
+                          </FieldSet>
+                        );
+                      }
+
+                      // Render radio buttons for single selection
                       return (
-                        <Field key={index}>
-                          <FieldLabel>
+                        <FieldSet key={index}>
+                          <FieldLegend variant="label">
                             {getLocalized(block.label, language)}
                             {block.required && (
                               <span className="text-destructive ml-1">*</span>
                             )}
-                          </FieldLabel>
-                          <Select
+                          </FieldLegend>
+                          {block.helpText && (
+                            <FieldDescription>
+                              {getLocalized(block.helpText, language)}
+                            </FieldDescription>
+                          )}
+                          <RadioGroup
                             value={formResponses[block.id] || ""}
                             onValueChange={(value) =>
                               setFormResponses((prev) => ({
@@ -298,32 +358,24 @@ export function TaskList({
                             }
                             disabled={isDisabled}
                           >
-                            <SelectTrigger className="w-full">
-                              <SelectValue
-                                placeholder={
-                                  language === "es"
-                                    ? "Selecciona una opción"
-                                    : "Select an option"
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {block.options.map((option) => (
-                                <SelectItem
-                                  key={option.value}
+                            {block.options.map((option) => (
+                              <Field
+                                key={option.value}
+                                orientation="horizontal"
+                              >
+                                <RadioGroupItem
                                   value={option.value}
+                                  id={`${block.id}-${option.value}`}
+                                />
+                                <FieldLabel
+                                  htmlFor={`${block.id}-${option.value}`}
                                 >
                                   {getLocalized(option.label, language)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {block.helpText && (
-                            <FieldDescription>
-                              {getLocalized(block.helpText, language)}
-                            </FieldDescription>
-                          )}
-                        </Field>
+                                </FieldLabel>
+                              </Field>
+                            ))}
+                          </RadioGroup>
+                        </FieldSet>
                       );
                     }
 
@@ -497,7 +549,7 @@ export function ExperimentCard({
                             )}
                           </span>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -598,9 +650,7 @@ export function ExperimentCard({
               </div>
               <div className="p-4 border-t bg-background">
                 <DrawerClose asChild>
-                  <Button variant="default" className="w-full">
-                    Close
-                  </Button>
+                  <Button className="w-full">Close</Button>
                 </DrawerClose>
               </div>
             </>

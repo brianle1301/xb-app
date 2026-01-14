@@ -119,6 +119,7 @@ export interface SelectBlockFormValue {
   helpTextEn: string;
   helpTextEs: string;
   required: boolean;
+  multiple: boolean;
   options: SelectOptionFormValue[];
 }
 
@@ -187,6 +188,7 @@ export type BlockApiInput =
       label: { en: string; es: string };
       helpText?: { en: string; es: string };
       required?: boolean;
+      multiple?: boolean;
       options: SelectOptionApiInput[];
     };
 
@@ -277,6 +279,7 @@ function blockToFormValue(block: Block): BlockFormValue {
     helpTextEn: block.helpText?.en ?? "",
     helpTextEs: block.helpText?.es ?? "",
     required: block.required ?? false,
+    multiple: block.multiple ?? false,
     options: block.options.map((opt) => ({
       value: opt.value,
       labelEn: opt.label.en,
@@ -334,6 +337,7 @@ function formValueToBlock(value: BlockFormValue): BlockApiInput {
         ? { en: value.helpTextEn, es: value.helpTextEs }
         : undefined,
     required: value.required || undefined,
+    multiple: value.multiple || undefined,
     options: value.options.map((opt) => ({
       value: opt.value,
       label: { en: opt.labelEn, es: opt.labelEs },
@@ -785,6 +789,23 @@ function BlockEditor({
                     </div>
                   )}
                 </form.Field>
+                <form.Field name={`${basePath}.multiple`}>
+                  {(subField: {
+                    state: { value: boolean };
+                    handleChange: (v: boolean) => void;
+                  }) => (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`${basePath}.multiple`}
+                        checked={subField.state.value}
+                        onCheckedChange={subField.handleChange}
+                      />
+                      <Label htmlFor={`${basePath}.multiple`}>
+                        Allow multiple selections
+                      </Label>
+                    </div>
+                  )}
+                </form.Field>
 
                 {/* Options editor */}
                 <form.Field name={`${basePath}.options`} mode="array">
@@ -953,6 +974,7 @@ function TaskEditor({
       helpTextEn: "",
       helpTextEs: "",
       required: false,
+      multiple: false,
       options: [],
     };
   };
@@ -1628,6 +1650,7 @@ export function ExperimentEditor({
                           label: { en: b.labelEn, es: b.labelEs },
                           helpText: { en: b.helpTextEn, es: b.helpTextEs },
                           required: b.required,
+                          multiple: b.multiple,
                           options: b.options.map((opt) => ({
                             value: opt.value,
                             label: { en: opt.labelEn, es: opt.labelEs },

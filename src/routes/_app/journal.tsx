@@ -163,15 +163,25 @@ function JournalPage() {
                   <div className="space-y-2">
                     {inputBlocks.map((block) => {
                       const response = entry.responses[block.id];
-                      // For select blocks, find the label for the selected value
+                      // For select blocks, find the label(s) for the selected value(s)
                       let displayValue: string = response;
                       if (block.type === "select") {
-                        const option = block.options.find(
-                          (o) => o.value === response,
-                        );
-                        if (option) {
-                          displayValue = getLocalized(option.label, language);
-                        }
+                        // Handle multiple selections (comma-separated values)
+                        const values = response
+                          ? response.split(",").filter(Boolean)
+                          : [];
+                        const labels = values
+                          .map((v) => {
+                            const option = block.options.find(
+                              (o) => o.value === v,
+                            );
+                            return option
+                              ? getLocalized(option.label, language)
+                              : v;
+                          })
+                          .filter(Boolean);
+                        displayValue =
+                          labels.length > 0 ? labels.join(", ") : response;
                       }
                       return (
                         <div key={block.id}>

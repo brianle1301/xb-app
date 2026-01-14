@@ -23,6 +23,7 @@ export interface BlockDoc {
   label?: { en?: string; es?: string };
   helpText?: { en?: string; es?: string };
   required?: boolean;
+  multiple?: boolean;
   placeholder?: { en?: string; es?: string };
   options?: SelectOptionDoc[];
 }

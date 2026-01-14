@@ -54,6 +54,7 @@ export interface SelectBlock {
   label: LocalizedText;
   helpText?: LocalizedText;
   required?: boolean;
+  multiple?: boolean;
   options: SelectOption[];
 }
 

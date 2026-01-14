@@ -1,7 +1,15 @@
 import React from "react";
+import { ChevronDownIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { typographyVariants } from "@/components/ui/typography";
 
 interface MarkdownRendererProps {
   content: string;
@@ -33,111 +41,92 @@ function YouTubeEmbed({ url }: { url: string }) {
 
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
-    <div className="prose prose-neutral dark:prose-invert max-w-none">
+    <div className="[&_[data-slot=collapsible]+[data-slot=collapsible]]:border-t-0 [&_[data-slot=collapsible]+[data-slot=collapsible]]:mt-0 [&_[data-slot=collapsible]:has(+[data-slot=collapsible])]:mb-0">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
         components={{
-          // Custom renderer for paragraphs to detect YouTube links
-          p: ({ children, ...props }) => {
-            const childrenArray = React.Children.toArray(children);
-            const youtubeRegex = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$/;
-
-            // Helper to extract YouTube URL from a child element
-            const getYouTubeUrl = (child: unknown): string | null => {
-              if (
-                typeof child === "object" &&
-                child !== null &&
-                "props" in child
-              ) {
-                const childElement = child as { props?: { href?: string } };
-                const href = childElement.props?.href;
-                if (href && youtubeRegex.test(href)) {
-                  return href;
-                }
-              }
-              return null;
-            };
-
-            // Check if paragraph contains only a single YouTube link (as text or anchor)
-            if (childrenArray.length === 1) {
-              const child = childrenArray[0];
-
-              // Case 1: Plain text YouTube URL
-              if (typeof child === "string" && youtubeRegex.test(child.trim())) {
-                return <YouTubeEmbed url={child.trim()} />;
-              }
-
-              // Case 2: YouTube URL wrapped in an anchor tag (markdown link)
-              const url = getYouTubeUrl(child);
-              if (url) {
-                return <YouTubeEmbed url={url} />;
-              }
-            }
-
-            // Case 3: YouTube link appears inline with other content
-            // Find YouTube links and render them as embeds after the paragraph
-            const youtubeLinks: string[] = [];
-            const processedChildren = childrenArray.map((child) => {
-              const url = getYouTubeUrl(child);
-              if (url) {
-                youtubeLinks.push(url);
-                // Return null to remove the link from inline content
-                return null;
-              }
-              return child;
-            }).filter(Boolean);
-
-            if (youtubeLinks.length > 0) {
-              return (
-                <>
-                  {processedChildren.length > 0 && (
-                    <p {...props}>{processedChildren}</p>
-                  )}
-                  {youtubeLinks.map((url, index) => (
-                    <YouTubeEmbed key={index} url={url} />
-                  ))}
-                </>
-              );
-            }
-
-            return <p {...props}>{children}</p>;
-          },
-          // Style images
-          img: ({ src, alt, ...props }) => (
-            <img
-              src={src}
-              alt={alt}
-              className="rounded-lg w-full object-cover my-4"
-              {...props}
-            />
+          // Style paragraphs
+          p: ({ children, ...props }) => (
+            <p className={typographyVariants()} {...props}>
+              {children}
+            </p>
           ),
+          // Style images - also handles YouTube embeds via ![](youtube-url) syntax
+          img: ({ src, alt, ...props }) => {
+            const youtubeRegex =
+              /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+            if (src && youtubeRegex.test(src)) {
+              return <YouTubeEmbed url={src} />;
+            }
+            return (
+              <img
+                src={src}
+                alt={alt}
+                className="rounded-lg w-full object-cover my-4"
+                {...props}
+              />
+            );
+          },
           // Style headings
           h1: ({ children, ...props }) => (
-            <h1 className="text-3xl font-bold mt-6 mb-4" {...props}>
+            <h1 className={typographyVariants({ variant: "h1" })} {...props}>
               {children}
             </h1>
           ),
           h2: ({ children, ...props }) => (
-            <h2 className="text-2xl font-semibold mt-5 mb-3" {...props}>
+            <h2 className={typographyVariants({ variant: "h2" })} {...props}>
               {children}
             </h2>
           ),
           h3: ({ children, ...props }) => (
-            <h3 className="text-xl font-semibold mt-4 mb-2" {...props}>
+            <h3 className={typographyVariants({ variant: "h3" })} {...props}>
               {children}
             </h3>
           ),
+          h4: ({ children, ...props }) => (
+            <h4 className={typographyVariants({ variant: "h4" })} {...props}>
+              {children}
+            </h4>
+          ),
+          h5: ({ children, ...props }) => (
+            <h5 className={typographyVariants({ variant: "h5" })} {...props}>
+              {children}
+            </h5>
+          ),
+          h6: ({ children, ...props }) => (
+            <h6 className={typographyVariants({ variant: "h6" })} {...props}>
+              {children}
+            </h6>
+          ),
           // Style lists
           ul: ({ children, ...props }) => (
-            <ul className="list-disc list-inside space-y-2 my-4" {...props}>
+            <ul className={typographyVariants({ variant: "ul" })} {...props}>
               {children}
             </ul>
           ),
           ol: ({ children, ...props }) => (
-            <ol className="list-decimal list-inside space-y-2 my-4" {...props}>
+            <ol className={typographyVariants({ variant: "ol" })} {...props}>
               {children}
             </ol>
+          ),
+          // Style blockquotes
+          blockquote: ({ children, ...props }) => (
+            <blockquote
+              className={typographyVariants({ variant: "blockquote" })}
+              {...props}
+            >
+              {children}
+            </blockquote>
+          ),
+          // Style inline code
+          code: ({ children, ...props }) => (
+            <code
+              className={typographyVariants({ variant: "inlineCode" })}
+              {...props}
+            >
+              {children}
+            </code>
           ),
           // Style links
           a: ({ children, href, ...props }) => (
@@ -151,6 +140,45 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               {children}
             </a>
           ),
+          // Render accordions using Collapsible
+          details: ({ children }) => {
+            const childArray = React.Children.toArray(children);
+            let summaryContent: React.ReactNode = "Details";
+            const contentChildren: React.ReactNode[] = [];
+
+            childArray.forEach((child) => {
+              if (React.isValidElement(child)) {
+                const props = child.props as {
+                  node?: { tagName?: string };
+                  children?: React.ReactNode;
+                };
+                if (
+                  child.type === "summary" ||
+                  props.node?.tagName === "summary"
+                ) {
+                  summaryContent = props.children;
+                } else {
+                  contentChildren.push(child);
+                }
+              } else {
+                contentChildren.push(child);
+              }
+            });
+
+            return (
+              <Collapsible className="my-4 border-b">
+                <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 py-4 text-left text-sm font-medium transition-colors [&[data-state=open]>svg]:rotate-180">
+                  {summaryContent}
+                  <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pb-4 text-sm">
+                  {contentChildren}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          },
+          // Summary is handled by details, render nothing here
+          summary: () => null,
         }}
       >
         {content}
