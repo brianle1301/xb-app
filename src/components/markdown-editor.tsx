@@ -5,8 +5,6 @@ import {
   Heading2,
   Heading3,
   Heading4,
-  Heading5,
-  Heading6,
   Video,
 } from "lucide-react";
 
@@ -30,14 +28,6 @@ const heading3Command: ICommand = {
 const heading4Command: ICommand = {
   ...commands.heading4,
   icon: <Heading4 className="size-3" />,
-};
-const heading5Command: ICommand = {
-  ...commands.heading5,
-  icon: <Heading5 className="size-3" />,
-};
-const heading6Command: ICommand = {
-  ...commands.heading6,
-  icon: <Heading6 className="size-3" />,
 };
 
 // Custom accordion command
@@ -102,8 +92,6 @@ export function MarkdownEditor({
           heading2Command,
           heading3Command,
           heading4Command,
-          heading5Command,
-          heading6Command,
           commands.divider,
           commands.link,
           commands.image,
