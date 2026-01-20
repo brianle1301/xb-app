@@ -1,9 +1,33 @@
 import React from "react";
 import { useForm } from "@tanstack/react-form";
 import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  defaultDropAnimationSideEffects,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+  type DropAnimation,
+  type UniqueIdentifier,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   ChevronRight,
   Copy,
   FileText,
+  GripVertical,
   Hash,
   List,
   Plus,
@@ -66,7 +90,7 @@ import type {
 // ============ Form Types ============
 
 export interface OverviewFormValue {
-  _id?: string;
+  id: string;
   titleEn: string;
   titleEs: string;
   thumbnail: string;
@@ -77,6 +101,7 @@ export interface OverviewFormValue {
 // Block form value types
 export interface MarkdownBlockFormValue {
   type: "markdown";
+  id: string;
   contentEn: string;
   contentEs: string;
 }
@@ -130,7 +155,7 @@ export type BlockFormValue =
   | SelectBlockFormValue;
 
 export interface TaskFormValue {
-  _id?: string;
+  id: string;
   nameEn: string;
   nameEs: string;
   icon: string;
@@ -138,6 +163,7 @@ export interface TaskFormValue {
 }
 
 export interface DayFormValue {
+  id: string;
   dayNumber: number;
   tasks: TaskFormValue[];
 }
@@ -153,10 +179,10 @@ export interface ExperimentFormValues {
 // ============ API Input Types ============
 
 export interface OverviewApiInput {
-  _id?: string;
+  id: string;
   title: { en: string; es: string };
   thumbnail: string;
-  blocks?: Array<{ type: "markdown"; content: { en?: string; es?: string } }>;
+  content: { en: string; es: string };
 }
 
 export interface SelectOptionApiInput {
@@ -165,7 +191,7 @@ export interface SelectOptionApiInput {
 }
 
 export type BlockApiInput =
-  | { type: "markdown"; content: { en?: string; es?: string } }
+  | { type: "markdown"; id: string; content: { en?: string; es?: string } }
   | {
       type: "text";
       id: string;
@@ -193,13 +219,14 @@ export type BlockApiInput =
     };
 
 export interface TaskApiInput {
-  _id?: string;
+  id: string;
   name: { en: string; es: string };
   icon: string;
   blocks?: BlockApiInput[];
 }
 
 export interface DayApiInput {
+  id: string;
   dayNumber: number;
   tasks: TaskApiInput[];
 }
@@ -208,12 +235,12 @@ export interface DayApiInput {
 
 export function overviewToFormValue(overview: Overview): OverviewFormValue {
   return {
-    _id: overview._id,
+    id: overview.id,
     titleEn: overview.title.en,
     titleEs: overview.title.es,
     thumbnail: overview.thumbnail,
-    contentEn: overview.blocks?.[0]?.content?.en ?? "",
-    contentEs: overview.blocks?.[0]?.content?.es ?? "",
+    contentEn: overview.content.en,
+    contentEs: overview.content.es,
   };
 }
 
@@ -221,18 +248,10 @@ export function formValueToOverview(
   value: OverviewFormValue,
 ): OverviewApiInput {
   return {
-    _id: value._id,
+    id: value.id,
     title: { en: value.titleEn, es: value.titleEs },
     thumbnail: value.thumbnail,
-    blocks:
-      value.contentEn || value.contentEs
-        ? [
-            {
-              type: "markdown" as const,
-              content: { en: value.contentEn, es: value.contentEs },
-            },
-          ]
-        : [],
+    content: { en: value.contentEn, es: value.contentEs },
   };
 }
 
@@ -240,6 +259,7 @@ function blockToFormValue(block: Block): BlockFormValue {
   if (block.type === "markdown") {
     return {
       type: "markdown",
+      id: block.id,
       contentEn: block.content?.en ?? "",
       contentEs: block.content?.es ?? "",
     };
@@ -292,6 +312,7 @@ function formValueToBlock(value: BlockFormValue): BlockApiInput {
   if (value.type === "markdown") {
     return {
       type: "markdown",
+      id: value.id,
       content: { en: value.contentEn, es: value.contentEs },
     };
   }
@@ -347,7 +368,7 @@ function formValueToBlock(value: BlockFormValue): BlockApiInput {
 
 export function taskToFormValue(task: Task): TaskFormValue {
   return {
-    _id: task._id,
+    id: task.id,
     nameEn: task.name.en,
     nameEs: task.name.es,
     icon: task.icon,
@@ -357,7 +378,7 @@ export function taskToFormValue(task: Task): TaskFormValue {
 
 export function formValueToTask(value: TaskFormValue): TaskApiInput {
   return {
-    _id: value._id,
+    id: value.id,
     name: { en: value.nameEn, es: value.nameEs },
     icon: value.icon,
     blocks: value.blocks.map(formValueToBlock),
@@ -366,6 +387,7 @@ export function formValueToTask(value: TaskFormValue): TaskApiInput {
 
 export function dayToFormValue(day: ExperimentDay): DayFormValue {
   return {
+    id: day.id,
     dayNumber: day.dayNumber,
     tasks: day.tasks.map(taskToFormValue),
   };
@@ -373,6 +395,7 @@ export function dayToFormValue(day: ExperimentDay): DayFormValue {
 
 export function formValueToDay(value: DayFormValue): DayApiInput {
   return {
+    id: value.id,
     dayNumber: value.dayNumber,
     tasks: value.tasks.map(formValueToTask),
   };
@@ -529,6 +552,8 @@ function BlockEditor({
   taskIndex,
   blockIndex,
   blockType,
+  sortableId,
+  isActive,
   onRemove,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -537,17 +562,46 @@ function BlockEditor({
   taskIndex: number;
   blockIndex: number;
   blockType: BlockFormValue["type"];
+  sortableId: string;
+  isActive: boolean;
   onRemove: () => void;
 }) {
   const [open, setOpen] = React.useState(true);
   const basePath = `days[${dayIndex}].tasks[${taskIndex}].blocks[${blockIndex}]`;
   const Icon = blockTypeInfo[blockType].icon;
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: sortableId });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    // Hide the original item while dragging (DragOverlay shows the preview)
+    opacity: isActive ? 0 : 1,
+  };
+
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="border-y border-border -mt-px last:-mb-px bg-muted/50"
+    >
+      <Collapsible open={open} onOpenChange={setOpen}>
         <div className="relative flex items-center gap-2 p-3">
           <CollapsibleTrigger className="absolute inset-0 w-full h-full cursor-pointer z-0" />
+          <button
+            type="button"
+            className="relative z-10 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="size-4" />
+          </button>
           <ChevronRight
             className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
           />
@@ -916,8 +970,32 @@ function BlockEditor({
             )}
           </div>
         </CollapsibleContent>
-      </div>
-    </Collapsible>
+      </Collapsible>
+    </div>
+  );
+}
+
+// Drop animation configuration
+const dropAnimationConfig: DropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: "0.5",
+      },
+    },
+  }),
+};
+
+// Block preview for DragOverlay - matches actual item styling
+function BlockDragPreview({ blockType }: { blockType: BlockFormValue["type"] }) {
+  const Icon = blockTypeInfo[blockType].icon;
+  return (
+    <div className="flex items-center gap-2 p-3 bg-muted/50 border-y border-border shadow-md">
+      <GripVertical className="size-4 text-muted-foreground" />
+      <ChevronRight className="size-4 text-muted-foreground" />
+      <Icon className="size-4 text-muted-foreground" />
+      <span className="flex-1 text-sm font-medium">{blockTypeInfo[blockType].label}</span>
+    </div>
   );
 }
 
@@ -925,20 +1003,51 @@ function TaskEditor({
   form,
   dayIndex,
   taskIndex,
+  sortableId,
+  isActive,
   onRemove,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: any;
   dayIndex: number;
   taskIndex: number;
+  sortableId: string;
+  isActive: boolean;
   onRemove: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [activeBlockId, setActiveBlockId] = React.useState<UniqueIdentifier | null>(null);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: sortableId });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    // Hide the original item while dragging (DragOverlay shows the preview)
+    opacity: isActive ? 0 : 1,
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   const createBlock = (type: BlockFormValue["type"]): BlockFormValue => {
     const id = crypto.randomUUID();
     if (type === "markdown") {
-      return { type: "markdown", contentEn: "", contentEs: "" };
+      return { type: "markdown", id, contentEn: "", contentEs: "" };
     }
     if (type === "text") {
       return {
@@ -980,10 +1089,22 @@ function TaskEditor({
   };
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="border-y border-border -mt-px last:-mb-px bg-muted/50"
+    >
+      <Collapsible open={open} onOpenChange={setOpen}>
         <div className="relative flex items-center gap-2 p-3">
           <CollapsibleTrigger className="absolute inset-0 w-full h-full cursor-pointer z-0"></CollapsibleTrigger>
+          <button
+            type="button"
+            className="relative z-10 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="size-4" />
+          </button>
           <ChevronRight
             className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
           />
@@ -1111,27 +1232,87 @@ function TaskEditor({
                       No blocks yet. Add markdown content or input fields.
                     </p>
                   ) : (
-                    <div className="border rounded-lg bg-muted/50 overflow-hidden divide-y divide-border">
-                      {field.state.value.map((block, blockIndex) => (
-                        <BlockEditor
-                          key={blockIndex}
-                          form={form}
-                          dayIndex={dayIndex}
-                          taskIndex={taskIndex}
-                          blockIndex={blockIndex}
-                          blockType={block.type}
-                          onRemove={() => field.removeValue(blockIndex)}
-                        />
-                      ))}
-                    </div>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      modifiers={[restrictToVerticalAxis]}
+                      onDragStart={(event: DragStartEvent) => {
+                        setActiveBlockId(event.active.id);
+                      }}
+                      onDragEnd={(event: DragEndEvent) => {
+                        const { active, over } = event;
+                        setActiveBlockId(null);
+                        if (over && active.id !== over.id) {
+                          const oldIndex = field.state.value.findIndex(
+                            (block) => block.id === active.id,
+                          );
+                          const newIndex = field.state.value.findIndex(
+                            (block) => block.id === over.id,
+                          );
+                          if (oldIndex !== -1 && newIndex !== -1) {
+                            const newBlocks = arrayMove(
+                              field.state.value,
+                              oldIndex,
+                              newIndex,
+                            );
+                            form.setFieldValue(
+                              `days[${dayIndex}].tasks[${taskIndex}].blocks`,
+                              newBlocks,
+                            );
+                          }
+                        }
+                      }}
+                      onDragCancel={() => setActiveBlockId(null)}
+                    >
+                      <SortableContext
+                        items={field.state.value.map((block) => block.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="border border-border rounded-lg overflow-hidden">
+                          {field.state.value.map((block, blockIndex) => (
+                            <BlockEditor
+                              key={block.id}
+                              form={form}
+                              dayIndex={dayIndex}
+                              taskIndex={taskIndex}
+                              blockIndex={blockIndex}
+                              blockType={block.type}
+                              sortableId={block.id}
+                              isActive={activeBlockId === block.id}
+                              onRemove={() => field.removeValue(blockIndex)}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                      <DragOverlay dropAnimation={dropAnimationConfig}>
+                        {activeBlockId != null ? (
+                          <BlockDragPreview
+                            blockType={
+                              field.state.value.find((b) => b.id === activeBlockId)?.type ?? "markdown"
+                            }
+                          />
+                        ) : null}
+                      </DragOverlay>
+                    </DndContext>
                   )}
                 </div>
               )}
             </form.Field>
           </div>
         </CollapsibleContent>
-      </div>
-    </Collapsible>
+      </Collapsible>
+    </div>
+  );
+}
+
+// Task preview for DragOverlay - matches actual item styling
+function TaskDragPreview({ taskName }: { taskName: string }) {
+  return (
+    <div className="flex items-center gap-2 p-3 bg-muted/50 border-y border-border shadow-md">
+      <GripVertical className="size-4 text-muted-foreground" />
+      <ChevronRight className="size-4 text-muted-foreground" />
+      <span className="flex-1 text-sm font-medium truncate">{taskName || "(Untitled)"}</span>
+    </div>
   );
 }
 
@@ -1152,6 +1333,18 @@ function DayEditor({
   onCopy: () => void;
 }) {
   const [open, setOpen] = React.useState(true);
+  const [activeTaskId, setActiveTaskId] = React.useState<UniqueIdentifier | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -1208,7 +1401,7 @@ function DayEditor({
                       size="sm"
                       onClick={() =>
                         field.pushValue({
-                          _id: crypto.randomUUID(),
+                          id: crypto.randomUUID(),
                           nameEn: "",
                           nameEs: "",
                           icon: "check",
@@ -1226,17 +1419,66 @@ function DayEditor({
                       this day.
                     </p>
                   ) : (
-                    <div className="border rounded-lg bg-muted/50 overflow-hidden divide-y divide-border">
-                      {field.state.value.map((task, taskIndex) => (
-                        <TaskEditor
-                          key={task._id ?? taskIndex}
-                          form={form}
-                          dayIndex={dayIndex}
-                          taskIndex={taskIndex}
-                          onRemove={() => field.removeValue(taskIndex)}
-                        />
-                      ))}
-                    </div>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      modifiers={[restrictToVerticalAxis]}
+                      onDragStart={(event: DragStartEvent) => {
+                        setActiveTaskId(event.active.id);
+                      }}
+                      onDragEnd={(event: DragEndEvent) => {
+                        const { active, over } = event;
+                        setActiveTaskId(null);
+                        if (over && active.id !== over.id) {
+                          const oldIndex = field.state.value.findIndex(
+                            (task) => task.id === active.id,
+                          );
+                          const newIndex = field.state.value.findIndex(
+                            (task) => task.id === over.id,
+                          );
+                          if (oldIndex !== -1 && newIndex !== -1) {
+                            const newTasks = arrayMove(
+                              field.state.value,
+                              oldIndex,
+                              newIndex,
+                            );
+                            form.setFieldValue(
+                              `days[${dayIndex}].tasks`,
+                              newTasks,
+                            );
+                          }
+                        }
+                      }}
+                      onDragCancel={() => setActiveTaskId(null)}
+                    >
+                      <SortableContext
+                        items={field.state.value.map((task) => task.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="border border-border rounded-lg overflow-hidden">
+                          {field.state.value.map((task, taskIndex) => (
+                            <TaskEditor
+                              key={task.id}
+                              form={form}
+                              dayIndex={dayIndex}
+                              taskIndex={taskIndex}
+                              sortableId={task.id}
+                              isActive={activeTaskId === task.id}
+                              onRemove={() => field.removeValue(taskIndex)}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                      <DragOverlay dropAnimation={dropAnimationConfig}>
+                        {activeTaskId != null ? (
+                          <TaskDragPreview
+                            taskName={
+                              field.state.value.find((t) => t.id === activeTaskId)?.nameEn ?? ""
+                            }
+                          />
+                        ) : null}
+                      </DragOverlay>
+                    </DndContext>
                   )}
                 </>
               )}
@@ -1251,7 +1493,7 @@ function DayEditor({
 // ============ Main Editor Component ============
 
 export interface BoxOption {
-  _id: string;
+  id: string;
   name: { en: string; es: string };
 }
 
@@ -1373,7 +1615,7 @@ export function ExperimentEditor({
                     </SelectTrigger>
                     <SelectContent>
                       {boxes.map((box) => (
-                        <SelectItem key={box._id} value={box._id}>
+                        <SelectItem key={box.id} value={box.id}>
                           {box.name.en || "(Untitled)"}
                         </SelectItem>
                       ))}
@@ -1397,7 +1639,7 @@ export function ExperimentEditor({
                         size="sm"
                         onClick={() =>
                           field.pushValue({
-                            _id: crypto.randomUUID(),
+                            id: crypto.randomUUID(),
                             titleEn: "",
                             titleEs: "",
                             thumbnail: "",
@@ -1419,7 +1661,7 @@ export function ExperimentEditor({
                       <div className="flex flex-col gap-4">
                         {field.state.value.map((item, index) => (
                           <OverviewEditor
-                            key={item._id ?? index}
+                            key={item.id}
                             form={form}
                             index={index}
                             onRemove={() => field.removeValue(index)}
@@ -1452,6 +1694,7 @@ export function ExperimentEditor({
                                 ) + 1
                               : 1;
                           field.pushValue({
+                            id: crypto.randomUUID(),
                             dayNumber: nextDayNumber,
                             tasks: [],
                           });
@@ -1469,7 +1712,7 @@ export function ExperimentEditor({
                       <div className="flex flex-col gap-4">
                         {field.state.value.map((day, dayIndex) => (
                           <DayEditor
-                            key={day.dayNumber}
+                            key={day.id}
                             form={form}
                             dayIndex={dayIndex}
                             dayNumber={day.dayNumber}
@@ -1483,14 +1726,14 @@ export function ExperimentEditor({
                               // Deep clone tasks with new IDs
                               const copiedTasks = day.tasks.map((task) => ({
                                 ...task,
-                                _id: crypto.randomUUID(),
-                                blocks: task.blocks.map((block) =>
-                                  block.type === "markdown"
-                                    ? { ...block }
-                                    : { ...block, id: crypto.randomUUID() },
-                                ),
+                                id: crypto.randomUUID(),
+                                blocks: task.blocks.map((block) => ({
+                                  ...block,
+                                  id: crypto.randomUUID(),
+                                })),
                               }));
                               field.pushValue({
+                                id: crypto.randomUUID(),
                                 dayNumber: nextDayNumber,
                                 tasks: copiedTasks,
                               });
@@ -1588,32 +1831,26 @@ export function ExperimentEditor({
             {({ nameEn, nameEs, overviews, days }) => (
               <ExperimentCard
                 experiment={{
-                  _id: experimentId ?? "preview",
+                  id: experimentId ?? "preview",
                   name: { en: nameEn, es: nameEs },
                   overviews: overviews.map((o) => ({
-                    _id: o._id ?? crypto.randomUUID(),
+                    id: o.id,
                     title: { en: o.titleEn, es: o.titleEs },
                     thumbnail: o.thumbnail,
-                    blocks:
-                      o.contentEn || o.contentEs
-                        ? [
-                            {
-                              type: "markdown" as const,
-                              content: { en: o.contentEn, es: o.contentEs },
-                            },
-                          ]
-                        : [],
+                    content: { en: o.contentEn, es: o.contentEs },
                   })),
                   days: days.map((d) => ({
+                    id: d.id,
                     dayNumber: d.dayNumber,
                     tasks: d.tasks.map((t) => ({
-                      _id: t._id ?? crypto.randomUUID(),
+                      id: t.id,
                       name: { en: t.nameEn, es: t.nameEs },
                       icon: t.icon,
                       blocks: t.blocks.map((b) => {
                         if (b.type === "markdown") {
                           return {
                             type: "markdown" as const,
+                            id: b.id,
                             content: { en: b.contentEn, es: b.contentEs },
                           };
                         }

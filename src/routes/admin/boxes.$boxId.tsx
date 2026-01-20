@@ -27,7 +27,7 @@ function EditBoxPage() {
   const handleSave = (values: BoxFormValues) => {
     updateMutation.mutate(
       {
-        _id: box._id,
+        id: box.id,
         name: { en: values.nameEn, es: values.nameEs },
         description: { en: values.descriptionEn, es: values.descriptionEs },
         icon: values.icon,
@@ -48,7 +48,7 @@ function EditBoxPage() {
     // First save, then publish
     updateMutation.mutate(
       {
-        _id: box._id,
+        id: box.id,
         name: { en: values.nameEn, es: values.nameEs },
         description: { en: values.descriptionEn, es: values.descriptionEs },
         icon: values.icon,
@@ -56,7 +56,7 @@ function EditBoxPage() {
       },
       {
         onSuccess: () => {
-          publishMutation.mutate(box._id, {
+          publishMutation.mutate(box.id, {
             onSuccess: () => {
               toast.success("Published");
             },
@@ -73,7 +73,7 @@ function EditBoxPage() {
   };
 
   const handleUnpublish = () => {
-    unpublishMutation.mutate(box._id, {
+    unpublishMutation.mutate(box.id, {
       onSuccess: () => {
         toast.success("Unpublished");
       },

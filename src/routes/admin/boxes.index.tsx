@@ -36,7 +36,7 @@ function DeleteBoxDialog({ box }: { box: Box }) {
   const [open, setOpen] = React.useState(false);
 
   const handleDelete = () => {
-    deleteMutation.mutate(box._id, {
+    deleteMutation.mutate(box.id, {
       onSuccess: () => {
         toast.success("Box deleted");
         setOpen(false);
@@ -99,7 +99,7 @@ function BoxesPage() {
         cell: ({ row }) => (
           <Link
             to="/admin/boxes/$boxId"
-            params={{ boxId: row.original._id }}
+            params={{ boxId: row.original.id }}
             className="font-medium hover:underline"
           >
             {row.original.name.en || "(Untitled)"}

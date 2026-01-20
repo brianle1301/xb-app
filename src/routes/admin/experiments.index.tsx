@@ -42,7 +42,7 @@ function DeleteExperimentDialog({
   const [open, setOpen] = React.useState(false);
 
   const handleDelete = () => {
-    deleteMutation.mutate(experiment._id, {
+    deleteMutation.mutate(experiment.id, {
       onSuccess: () => {
         toast.success("Experiment deleted");
         setOpen(false);
@@ -98,7 +98,7 @@ function ExperimentsPage() {
         cell: ({ row }) => (
           <Link
             to="/admin/experiments/$experimentId"
-            params={{ experimentId: row.original._id }}
+            params={{ experimentId: row.original.id }}
             className="font-medium hover:underline"
           >
             {row.original.name.en || "(Untitled)"}

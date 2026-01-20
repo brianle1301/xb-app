@@ -143,7 +143,7 @@ function JournalPage() {
           const hasResponses = inputBlocks.length > 0;
 
           return (
-            <Card key={entry._id}>
+            <Card key={entry.id}>
               <CardHeader>
                 <CardLeadingAction>
                   <DynamicIcon

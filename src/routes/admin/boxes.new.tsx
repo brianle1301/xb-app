@@ -29,7 +29,7 @@ function NewBoxPage() {
           toast.success("Box created");
           navigate({
             to: "/admin/boxes/$boxId",
-            params: { boxId: box._id },
+            params: { boxId: box.id },
             replace: true,
           });
         },
@@ -50,12 +50,12 @@ function NewBoxPage() {
       },
       {
         onSuccess: (box) => {
-          publishMutation.mutate(box._id, {
+          publishMutation.mutate(box.id, {
             onSuccess: () => {
               toast.success("Box created and published");
               navigate({
                 to: "/admin/boxes/$boxId",
-                params: { boxId: box._id },
+                params: { boxId: box.id },
                 replace: true,
               });
             },

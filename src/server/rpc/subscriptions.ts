@@ -38,7 +38,7 @@ export interface TaskCompletion {
 }
 
 export interface Subscription {
-  _id: string;
+  id: string;
   userId: string;
   experimentId: string;
   status: SubscriptionStatus;
@@ -81,7 +81,7 @@ function serializeCompletion(entry: TaskCompletionEntry): TaskCompletion {
 
 function serializeSubscription(doc: SubscriptionDoc): Subscription {
   return {
-    _id: doc._id.toString(),
+    id: doc._id.toString(),
     userId: doc.userId,
     experimentId: doc.experimentId.toString(),
     status: doc.status,
@@ -170,7 +170,7 @@ export const getUserSubscriptions = createServerFn({ method: "GET" })
         }
 
         results.push({
-          _id: doc._id.toString(),
+          id: doc._id.toString(),
           userId: doc.userId,
           experimentId: serializeExperiment(
             doc.experiment,
@@ -186,7 +186,7 @@ export const getUserSubscriptions = createServerFn({ method: "GET" })
         });
       } else {
         results.push({
-          _id: doc._id.toString(),
+          id: doc._id.toString(),
           userId: doc.userId,
           experimentId: serializeExperiment(
             doc.experiment,
@@ -377,11 +377,10 @@ export const completeTask = createServerFn({ method: "POST" })
     const journalEntriesCol = await getJournalEntries();
 
     const now = new Date();
-    const taskIdObj = new ObjectId(data.taskId);
     const subscriptionIdObj = new ObjectId(data.subscriptionId);
 
     const completion: TaskCompletionEntry = {
-      taskId: taskIdObj,
+      taskId: data.taskId,
       dayNumber: data.dayNumber,
       completedAt: now,
       responses: data.responses,
@@ -397,7 +396,7 @@ export const completeTask = createServerFn({ method: "POST" })
         { _id: subscriptionIdObj, userId },
         {
           $pull: {
-            completions: { taskId: taskIdObj, dayNumber: data.dayNumber },
+            completions: { taskId: data.taskId, dayNumber: data.dayNumber },
           },
         },
         { session },
@@ -422,7 +421,7 @@ export const completeTask = createServerFn({ method: "POST" })
         {
           userId,
           subscriptionId: subscriptionIdObj,
-          taskId: taskIdObj,
+          taskId: data.taskId,
           dayNumber: data.dayNumber,
         },
         {
@@ -430,7 +429,7 @@ export const completeTask = createServerFn({ method: "POST" })
             userId,
             subscriptionId: subscriptionIdObj,
             experimentId: subscription.experimentId,
-            taskId: taskIdObj,
+            taskId: data.taskId,
             dayNumber: data.dayNumber,
             date: now,
             responses: data.responses || {},
@@ -467,7 +466,6 @@ export const uncompleteTask = createServerFn({ method: "POST" })
     const subscriptionsCol = await getSubscriptions();
     const journalEntriesCol = await getJournalEntries();
 
-    const taskIdObj = new ObjectId(data.taskId);
     const subscriptionIdObj = new ObjectId(data.subscriptionId);
 
     const session = client.startSession();
@@ -483,7 +481,7 @@ export const uncompleteTask = createServerFn({ method: "POST" })
         },
         {
           $pull: {
-            completions: { taskId: taskIdObj, dayNumber: data.dayNumber },
+            completions: { taskId: data.taskId, dayNumber: data.dayNumber },
           },
           $set: { updatedAt: new Date() },
         },
@@ -495,7 +493,7 @@ export const uncompleteTask = createServerFn({ method: "POST" })
         {
           userId,
           subscriptionId: subscriptionIdObj,
-          taskId: taskIdObj,
+          taskId: data.taskId,
           dayNumber: data.dayNumber,
         },
         { session },
@@ -544,9 +542,11 @@ export const adminGetUserSubscriptions = createServerFn({ method: "POST" })
           : null;
 
       return {
-        _id: doc._id.toString(),
+        id: doc._id.toString(),
         userId: doc.userId,
-        experimentId: serializeExperiment(doc.experiment) as PublishedExperiment,
+        experimentId: serializeExperiment(
+          doc.experiment,
+        ) as PublishedExperiment,
         status: doc.status,
         offeredAt: doc.offeredAt,
         startedAt: doc.startedAt,

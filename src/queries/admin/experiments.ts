@@ -17,10 +17,10 @@ export const allExperimentsQuery = () =>
   });
 
 interface OverviewInput {
-  _id?: string;
+  id: string;
   title: LocalizedText;
   thumbnail: string;
-  blocks?: Array<{ type: "markdown"; content: { en?: string; es?: string } }>;
+  content: LocalizedText;
 }
 
 interface SelectOptionInput {
@@ -29,7 +29,7 @@ interface SelectOptionInput {
 }
 
 type BlockInput =
-  | { type: "markdown"; content: { en?: string; es?: string } }
+  | { type: "markdown"; id: string; content: { en?: string; es?: string } }
   | {
       type: "text";
       id: string;
@@ -56,13 +56,14 @@ type BlockInput =
     };
 
 interface TaskInput {
-  _id?: string;
+  id: string;
   name: LocalizedText;
   icon: string;
   blocks?: BlockInput[];
 }
 
 interface DayInput {
+  id: string;
   dayNumber: number;
   tasks: TaskInput[];
 }
@@ -86,7 +87,7 @@ export const useUpdateExperimentMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: {
-      _id: string;
+      id: string;
       name: LocalizedText;
       boxId?: string;
       overviews?: OverviewInput[];
@@ -95,7 +96,7 @@ export const useUpdateExperimentMutation = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["experiments", "list"] });
       queryClient.invalidateQueries({
-        queryKey: ["experiments", "detail", variables._id],
+        queryKey: ["experiments", "detail", variables.id],
       });
     },
   });

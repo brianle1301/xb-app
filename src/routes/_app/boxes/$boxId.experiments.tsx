@@ -83,26 +83,26 @@ function BoxExperimentsPage() {
 
           return (
             <ExperimentCard
-              key={experiment._id}
+              key={experiment.id}
               experiment={experiment}
               language={language}
-              expanded={expandedExperimentId === experiment._id}
+              expanded={expandedExperimentId === experiment.id}
               onExpandedChange={(expanded) =>
-                setExpandedExperimentId(expanded ? experiment._id : null)
+                setExpandedExperimentId(expanded ? experiment.id : null)
               }
               subscription={{
-                _id: subscription._id,
+                id: subscription.id,
                 status: subscription.status,
                 currentDay: subscription.currentDay,
               }}
               isTaskCompleted={(taskId, dayNumber) =>
                 completedTaskKeys.has(`${taskId}-${dayNumber}`)
               }
-              onStart={() => startMutation.mutate(subscription._id)}
+              onStart={() => startMutation.mutate(subscription.id)}
               onCompleteTask={(taskId, dayNumber, responses) =>
                 completeMutation.mutate({
                   data: {
-                    subscriptionId: subscription._id,
+                    subscriptionId: subscription.id,
                     taskId,
                     dayNumber,
                     responses,
@@ -112,7 +112,7 @@ function BoxExperimentsPage() {
               onUncompleteTask={(taskId, dayNumber) =>
                 uncompleteMutation.mutate({
                   data: {
-                    subscriptionId: subscription._id,
+                    subscriptionId: subscription.id,
                     taskId,
                     dayNumber,
                   },

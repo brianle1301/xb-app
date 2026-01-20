@@ -18,8 +18,8 @@ export interface SelectOptionDoc {
 
 export interface BlockDoc {
   type: "markdown" | "text" | "number" | "select";
+  id: string;
   content?: { en?: string; es?: string };
-  id?: string;
   label?: { en?: string; es?: string };
   helpText?: { en?: string; es?: string };
   required?: boolean;
@@ -29,26 +29,21 @@ export interface BlockDoc {
 }
 
 export interface TaskDoc {
-  _id?: ObjectId;
+  id: string;
   name: LocalizedText;
   icon: string;
   blocks?: BlockDoc[];
 }
 
-// Content-only block for overviews (only markdown)
-export interface ContentBlockDoc {
-  type: "markdown";
-  content?: { en?: string; es?: string };
-}
-
 export interface OverviewDoc {
-  _id?: ObjectId;
+  id: string;
   title: LocalizedText;
   thumbnail: string;
-  blocks?: ContentBlockDoc[];
+  content: LocalizedText;
 }
 
 export interface ExperimentDayDoc {
+  id: string;
   dayNumber: number;
   tasks: TaskDoc[];
 }
@@ -72,7 +67,7 @@ export interface ExperimentDoc {
 }
 
 export interface TaskCompletionEntry {
-  taskId: ObjectId;
+  taskId: string;
   dayNumber: number;
   completedAt: Date;
   responses?: Record<string, string>;
@@ -96,7 +91,7 @@ export interface JournalEntryDoc {
   userId: string;
   subscriptionId: ObjectId;
   experimentId: ObjectId;
-  taskId: ObjectId;
+  taskId: string;
   dayNumber: number;
   date: Date;
   responses: Record<string, string>;

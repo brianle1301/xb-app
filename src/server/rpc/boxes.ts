@@ -37,7 +37,7 @@ function validateForPublish(box: BoxDoc) {
 export type BoxStatus = "draft" | "published";
 
 export interface Box {
-  _id: string;
+  id: string;
   name: LocalizedText;
   description: LocalizedText;
   thumbnail: string;
@@ -49,7 +49,7 @@ export interface Box {
 
 export function serializeBox(doc: BoxDoc): Box {
   return {
-    _id: doc._id.toString(),
+    id: doc._id.toString(),
     name: {
       en: doc.name.en,
       es: doc.name.es,
@@ -122,7 +122,7 @@ export const createBox = createServerFn({ method: "POST" })
   });
 
 interface UpdateBoxInput {
-  _id: string;
+  id: string;
   name: LocalizedText;
   description: LocalizedText;
   icon: string;
@@ -134,7 +134,7 @@ export const updateBox = createServerFn({ method: "POST" })
   .inputValidator((data: UpdateBoxInput) => data)
   .handler(async ({ data }): Promise<Box> => {
     const boxes = await getBoxes();
-    const box = await boxes.findOne({ _id: new ObjectId(data._id) });
+    const box = await boxes.findOne({ _id: new ObjectId(data.id) });
     if (!box) {
       throw new Error("Box not found");
     }
@@ -149,7 +149,7 @@ export const updateBox = createServerFn({ method: "POST" })
       });
     }
     const updated = await boxes.findOneAndUpdate(
-      { _id: new ObjectId(data._id) },
+      { _id: new ObjectId(data.id) },
       {
         $set: {
           name: data.name,

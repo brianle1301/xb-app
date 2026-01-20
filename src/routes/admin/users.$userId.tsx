@@ -69,13 +69,13 @@ function UserDetailPage() {
   const activeSubscriptionExperimentIds = new Set(
     subscriptions
       .filter((s) => s.status === "offered" || s.status === "started")
-      .map((s) => s.experimentId._id),
+      .map((s) => s.experimentId.id),
   );
 
   // Get published experiments that user is not subscribed to
   const availableExperiments = experiments.filter(
     (e) =>
-      e.status === "published" && !activeSubscriptionExperimentIds.has(e._id),
+      e.status === "published" && !activeSubscriptionExperimentIds.has(e.id),
   );
 
   const handleMakeAdmin = () => {
@@ -189,7 +189,7 @@ function UserDetailPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handleRemoveSubscription(row.original._id)}
+            onClick={() => handleRemoveSubscription(row.original.id)}
             disabled={removeSubscriptionMutation.isPending}
           >
             <Trash2 className="size-4" />
@@ -279,8 +279,8 @@ function UserDetailPage() {
             <DropdownMenuContent align="end">
               {availableExperiments.map((experiment) => (
                 <DropdownMenuItem
-                  key={experiment._id}
-                  onClick={() => handleSubscribe(experiment._id)}
+                  key={experiment.id}
+                  onClick={() => handleSubscribe(experiment.id)}
                 >
                   {experiment.name.en}
                 </DropdownMenuItem>

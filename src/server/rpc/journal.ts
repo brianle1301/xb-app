@@ -1,18 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
-import { ObjectId } from "mongodb";
 
 import type { Task } from "@/types/shared";
 
 import { authMiddleware } from "./auth";
-import { type Experiment, serializeExperiment, serializeTask } from "./experiments";
+import {
+  type Experiment,
+  serializeExperiment,
+  serializeTask,
+} from "./experiments";
 
 import { getExperiments, getJournalEntries } from "../db/client";
 import type { ExperimentDoc, TaskDoc } from "../db/types";
 
 // ============ Types ============
 
-export interface JournalEntry_ {
-  _id: string;
+export interface JournalEntry {
+  id: string;
   userId: string;
   subscriptionId: string;
   experimentId: string;
@@ -25,7 +28,10 @@ export interface JournalEntry_ {
 }
 
 // Journal entry with populated experiment and task
-export interface JournalEntryWithDetails extends Omit<JournalEntry_, "experimentId" | "taskId"> {
+export interface JournalEntryWithDetails extends Omit<
+  JournalEntry,
+  "experimentId" | "taskId"
+> {
   experimentId: Experiment;
   taskId: Task;
 }
@@ -33,10 +39,13 @@ export interface JournalEntryWithDetails extends Omit<JournalEntry_, "experiment
 // ============ Helpers ============
 
 // Helper to find a task within an experiment by taskId
-function findTaskInExperiment(experiment: ExperimentDoc, taskId: ObjectId): TaskDoc | null {
+function findTaskInExperiment(
+  experiment: ExperimentDoc,
+  taskId: string,
+): TaskDoc | null {
   for (const day of experiment.days) {
     for (const task of day.tasks) {
-      if (task._id && task._id.equals(taskId)) {
+      if (task.id === taskId) {
         return task;
       }
     }
@@ -50,7 +59,10 @@ export const getJournalEntriesByDate = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator((data: { date: string }) => data)
   .handler(
-    async ({ data: { date: dateStr }, context }): Promise<JournalEntryWithDetails[]> => {
+    async ({
+      data: { date: dateStr },
+      context,
+    }): Promise<JournalEntryWithDetails[]> => {
       const userId = context.user.id;
       const date = new Date(dateStr);
       const startOfDay = new Date(date);
@@ -76,7 +88,9 @@ export const getJournalEntriesByDate = createServerFn({ method: "POST" })
 
       for (const entry of entries) {
         // Populate experiment
-        const experiment = await experimentsCol.findOne({ _id: entry.experimentId });
+        const experiment = await experimentsCol.findOne({
+          _id: entry.experimentId,
+        });
         if (!experiment) continue;
 
         // Find task within experiment
@@ -84,7 +98,7 @@ export const getJournalEntriesByDate = createServerFn({ method: "POST" })
         if (!task) continue;
 
         results.push({
-          _id: entry._id.toString(),
+          id: entry._id.toString(),
           userId: entry.userId,
           subscriptionId: entry.subscriptionId.toString(),
           experimentId: serializeExperiment(experiment),

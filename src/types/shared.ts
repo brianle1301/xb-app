@@ -27,6 +27,7 @@ export interface SelectOption {
 
 export interface MarkdownBlock {
   type: "markdown";
+  id: string;
   content: OptionalLocalizedText;
 }
 
@@ -63,22 +64,19 @@ export type Block = MarkdownBlock | TextBlock | NumberBlock | SelectBlock;
 // Helper type for blocks that collect user input
 export type InputBlock = TextBlock | NumberBlock | SelectBlock;
 
-// Content-only block (no inputs) for overviews
-export type ContentBlock = MarkdownBlock;
-
 // ============ Overview ============
 
 export interface Overview {
-  _id: string;
+  id: string;
   title: LocalizedText;
   thumbnail: string;
-  blocks?: ContentBlock[];
+  content: LocalizedText;
 }
 
 // ============ Task ============
 
 export interface Task {
-  _id: string;
+  id: string;
   name: LocalizedText;
   icon: string;
   blocks?: Block[];
@@ -87,6 +85,7 @@ export interface Task {
 // ============ Experiment Day ============
 
 export interface ExperimentDay {
+  id: string;
   dayNumber: number;
   tasks: Task[];
 }

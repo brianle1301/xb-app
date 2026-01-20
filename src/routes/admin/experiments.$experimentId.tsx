@@ -43,7 +43,7 @@ function EditExperimentPage() {
   const handleSave = (values: ExperimentFormValues) => {
     updateMutation.mutate(
       {
-        _id: experiment._id,
+        id: experiment.id,
         name: { en: values.nameEn, es: values.nameEs },
         boxId: values.boxId || undefined,
         overviews: values.overviews.map(formValueToOverview),
@@ -63,7 +63,7 @@ function EditExperimentPage() {
   const handlePublish = (values: ExperimentFormValues) => {
     updateMutation.mutate(
       {
-        _id: experiment._id,
+        id: experiment.id,
         name: { en: values.nameEn, es: values.nameEs },
         boxId: values.boxId || undefined,
         overviews: values.overviews.map(formValueToOverview),
@@ -71,7 +71,7 @@ function EditExperimentPage() {
       },
       {
         onSuccess: () => {
-          publishMutation.mutate(experiment._id, {
+          publishMutation.mutate(experiment.id, {
             onSuccess: () => {
               toast.success("Published");
             },
@@ -88,7 +88,7 @@ function EditExperimentPage() {
   };
 
   const handleUnpublish = () => {
-    unpublishMutation.mutate(experiment._id, {
+    unpublishMutation.mutate(experiment.id, {
       onSuccess: () => {
         toast.success("Unpublished");
       },
@@ -102,7 +102,7 @@ function EditExperimentPage() {
     <div className="w-full max-w-6xl mx-auto p-6">
       <ExperimentEditor
         title={`Edit ${experiment.name.en || "(Untitled)"}`}
-        experimentId={experiment._id}
+        experimentId={experiment.id}
         initialValues={{
           nameEn: experiment.name.en,
           nameEs: experiment.name.es,

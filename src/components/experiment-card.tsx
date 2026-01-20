@@ -79,7 +79,7 @@ export function TaskList({
 
   const isPreviewMode = dayNumber === null;
   const selectedTaskCompleted =
-    selectedTask && isTaskCompleted?.(selectedTask._id);
+    selectedTask && isTaskCompleted?.(selectedTask.id);
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
@@ -104,9 +104,9 @@ export function TaskList({
     }
 
     if (selectedTaskCompleted) {
-      onUncompleteTask?.(selectedTask._id);
+      onUncompleteTask?.(selectedTask.id);
     } else {
-      onCompleteTask?.(selectedTask._id, formResponses);
+      onCompleteTask?.(selectedTask.id, formResponses);
     }
   };
 
@@ -114,10 +114,10 @@ export function TaskList({
     <>
       <div className="border rounded-lg bg-muted/50 overflow-hidden divide-y divide-border">
         {tasks.map((task) => {
-          const completed = isTaskCompleted?.(task._id);
+          const completed = isTaskCompleted?.(task.id);
           return (
             <button
-              key={task._id}
+              key={task.id}
               onClick={() => handleTaskClick(task)}
               className={`w-full flex items-center gap-3 p-3 transition-colors text-left ${
                 completed ? "" : "hover:bg-muted"
@@ -424,7 +424,7 @@ export function TaskList({
 
 // Minimal experiment shape needed for the card
 export interface ExperimentCardData {
-  _id: string;
+  id: string;
   name: LocalizedText;
   overviews?: Overview[];
   days: ExperimentDay[];
@@ -432,7 +432,7 @@ export interface ExperimentCardData {
 
 // Subscription data for live mode
 export interface SubscriptionData {
-  _id: string;
+  id: string;
   status: "offered" | "started" | "completed" | "abandoned";
   currentDay?: number | null;
 }
@@ -532,7 +532,7 @@ export function ExperimentCard({
                   <div className="border rounded-lg bg-muted/50 overflow-hidden mb-5 divide-y divide-border">
                     {experiment.overviews.map((overview) => (
                       <button
-                        key={overview._id}
+                        key={overview.id}
                         onClick={() => setSelectedOverview(overview)}
                         className="w-full flex items-center justify-between p-3 hover:bg-muted transition-colors text-left"
                       >
@@ -641,12 +641,9 @@ export function ExperimentCard({
                 </div>
               </DrawerHeader>
               <div className="p-4">
-                {selectedOverview.blocks?.map((block, index) => (
-                  <MarkdownRenderer
-                    key={index}
-                    content={getLocalized(block.content, language)}
-                  />
-                ))}
+                <MarkdownRenderer
+                  content={getLocalized(selectedOverview.content, language)}
+                />
               </div>
               <div className="p-4 border-t bg-background">
                 <DrawerClose asChild>

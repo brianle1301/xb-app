@@ -35,7 +35,7 @@ export const useUpdateBoxMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: {
-      _id: string;
+      id: string;
       name: LocalizedText;
       description: LocalizedText;
       icon: string;
@@ -44,7 +44,7 @@ export const useUpdateBoxMutation = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["boxes", "list"] });
       queryClient.invalidateQueries({
-        queryKey: ["boxes", "detail", variables._id],
+        queryKey: ["boxes", "detail", variables.id],
       });
     },
   });

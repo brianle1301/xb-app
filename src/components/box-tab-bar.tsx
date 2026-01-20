@@ -19,13 +19,13 @@ export function BoxTabBar({ currentBoxId }: BoxTabBarProps) {
     <nav className="border-b border-border">
       <div className="flex">
         {boxes?.map((box) => {
-          const isActive = currentBoxId === box._id;
+          const isActive = currentBoxId === box.id;
 
           return (
             <Link
-              key={box._id}
+              key={box.id}
               to="/boxes/$boxId/experiments"
-              params={{ boxId: box._id }}
+              params={{ boxId: box.id }}
               className={cn(
                 "flex items-center gap-2 px-4 py-3 text-sm transition-colors border-b-2 -mb-px",
                 isActive

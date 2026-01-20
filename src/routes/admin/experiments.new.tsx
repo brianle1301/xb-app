@@ -40,7 +40,7 @@ function NewExperimentPage() {
           toast.success("Experiment created");
           navigate({
             to: "/admin/experiments/$experimentId",
-            params: { experimentId: experiment._id },
+            params: { experimentId: experiment.id },
             replace: true,
           });
         },
@@ -61,12 +61,12 @@ function NewExperimentPage() {
       },
       {
         onSuccess: (experiment) => {
-          publishMutation.mutate(experiment._id, {
+          publishMutation.mutate(experiment.id, {
             onSuccess: () => {
               toast.success("Experiment created and published");
               navigate({
                 to: "/admin/experiments/$experimentId",
-                params: { experimentId: experiment._id },
+                params: { experimentId: experiment.id },
                 replace: true,
               });
             },

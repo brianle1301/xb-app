@@ -76,7 +76,7 @@ function TodayPage() {
         {filteredTodayData.map((group) => {
           const { subscription, experiment, tasks, currentDay, totalDays } =
             group;
-          const subscriptionId = subscription._id;
+          const subscriptionId = subscription.id;
 
           // Build completed keys set from this subscription's completions
           const completedTaskKeys = new Set(
@@ -90,11 +90,11 @@ function TodayPage() {
 
           // Count completed tasks for this subscription/day
           const completedCount = tasks.filter((task) =>
-            isTaskCompleted(task._id, currentDay)
+            isTaskCompleted(task.id, currentDay)
           ).length;
 
           return (
-            <Card key={experiment._id}>
+            <Card key={experiment.id}>
               <CardHeader>
                 <CardHeaderText>
                   <CardTitle>

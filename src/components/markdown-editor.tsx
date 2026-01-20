@@ -80,6 +80,7 @@ export function MarkdownEditor({
         value={value}
         onChange={(val) => onChange(val ?? "")}
         preview="live"
+        overflow={false}
         height={height}
         textareaProps={{
           placeholder,

@@ -30,13 +30,13 @@ function ExperimentsPage() {
       <div className="grid gap-4">
         {boxes?.map((box) => (
           <BoxCard
-            key={box._id}
+            key={box.id}
             name={getLocalized(box.name, language)}
             description={getLocalized(box.description, language)}
             thumbnail={box.thumbnail}
           >
             <CardLink asChild>
-              <Link to="/boxes/$boxId/experiments" params={{ boxId: box._id }} />
+              <Link to="/boxes/$boxId/experiments" params={{ boxId: box.id }} />
             </CardLink>
           </BoxCard>
         ))}

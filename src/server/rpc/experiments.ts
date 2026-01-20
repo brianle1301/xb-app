@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import type {
   Block,
-  ContentBlock,
   ExperimentDay,
   LocalizedText,
   Overview,
@@ -19,7 +18,6 @@ import { getExperiments, getSubscriptions } from "../db/client";
 import type {
   BlockDoc,
   BoxDoc,
-  ContentBlockDoc,
   ExperimentDayDoc,
   ExperimentDoc,
   OverviewDoc,
@@ -68,7 +66,7 @@ export type ExperimentStatus = "draft" | "published";
 
 // Base experiment fields shared between draft and published
 interface BaseExperiment {
-  _id: string;
+  id: string;
   name: LocalizedText;
   overviews?: Overview[];
   days: ExperimentDay[];
@@ -102,25 +100,18 @@ function serializeSelectOption(doc: SelectOptionDoc): SelectOption {
   };
 }
 
-function serializeContentBlock(doc: ContentBlockDoc): ContentBlock {
-  return {
-    type: "markdown",
-    content: {
-      en: doc.content?.en,
-      es: doc.content?.es,
-    },
-  };
-}
-
 function serializeOverview(doc: OverviewDoc): Overview {
   return {
-    _id: doc._id!.toString(),
+    id: doc.id,
     title: {
       en: doc.title.en,
       es: doc.title.es,
     },
     thumbnail: doc.thumbnail,
-    blocks: doc.blocks?.map(serializeContentBlock),
+    content: {
+      en: doc.content.en,
+      es: doc.content.es,
+    },
   };
 }
 
@@ -128,6 +119,7 @@ function serializeBlock(doc: BlockDoc): Block {
   if (doc.type === "markdown") {
     return {
       type: "markdown",
+      id: doc.id,
       content: {
         en: doc.content?.en,
         es: doc.content?.es,
@@ -171,7 +163,7 @@ function serializeBlock(doc: BlockDoc): Block {
 
 export function serializeTask(doc: TaskDoc): Task {
   return {
-    _id: doc._id!.toString(),
+    id: doc.id,
     name: {
       en: doc.name.en,
       es: doc.name.es,
@@ -183,6 +175,7 @@ export function serializeTask(doc: TaskDoc): Task {
 
 function serializeExperimentDay(doc: ExperimentDayDoc): ExperimentDay {
   return {
+    id: doc.id,
     dayNumber: doc.dayNumber,
     tasks: doc.tasks.map(serializeTask),
   };
@@ -190,7 +183,7 @@ function serializeExperimentDay(doc: ExperimentDayDoc): ExperimentDay {
 
 export function serializeExperiment(doc: ExperimentDoc): Experiment {
   const base = {
-    _id: doc._id.toString(),
+    id: doc._id.toString(),
     name: {
       en: doc.name.en,
       es: doc.name.es,
@@ -218,10 +211,10 @@ export function serializeExperiment(doc: ExperimentDoc): Experiment {
 // ============ Admin RPC Functions ============
 
 interface OverviewInput {
-  _id?: string;
+  id: string;
   title: LocalizedText;
   thumbnail: string;
-  blocks?: Array<{ type: "markdown"; content: { en?: string; es?: string } }>;
+  content: LocalizedText;
 }
 
 interface SelectOptionInput {
@@ -230,7 +223,7 @@ interface SelectOptionInput {
 }
 
 type BlockInput =
-  | { type: "markdown"; content: { en?: string; es?: string } }
+  | { type: "markdown"; id: string; content: { en?: string; es?: string } }
   | {
       type: "text";
       id: string;
@@ -257,13 +250,14 @@ type BlockInput =
     };
 
 interface TaskInput {
-  _id?: string;
+  id: string;
   name: LocalizedText;
   icon: string;
   blocks?: BlockInput[];
 }
 
 interface DayInput {
+  id: string;
   dayNumber: number;
   tasks: TaskInput[];
 }
@@ -275,19 +269,13 @@ interface CreateExperimentInput {
   days?: DayInput[];
 }
 
-// Helper to check if a string is a valid ObjectId
-const isValidObjectId = (id?: string) => id && /^[a-f\d]{24}$/i.test(id);
-
 // Helper to convert overview input to doc format
 function overviewInputToDoc(o: OverviewInput): OverviewDoc {
   return {
-    _id: isValidObjectId(o._id) ? new ObjectId(o._id) : new ObjectId(),
+    id: o.id,
     title: o.title,
     thumbnail: o.thumbnail,
-    blocks: o.blocks?.map((b) => ({
-      type: b.type,
-      content: b.content,
-    })),
+    content: o.content,
   };
 }
 
@@ -296,6 +284,7 @@ function blockInputToDoc(b: BlockInput): BlockDoc {
   if (b.type === "markdown") {
     return {
       type: "markdown",
+      id: b.id,
       content: b.content,
     };
   }
@@ -326,9 +315,10 @@ function blockInputToDoc(b: BlockInput): BlockDoc {
 // Helper to convert day input to doc format
 function dayInputToDoc(d: DayInput): ExperimentDayDoc {
   return {
+    id: d.id,
     dayNumber: d.dayNumber,
     tasks: d.tasks.map((t) => ({
-      _id: isValidObjectId(t._id) ? new ObjectId(t._id) : new ObjectId(),
+      id: t.id,
       name: t.name,
       icon: t.icon,
       blocks: t.blocks?.map(blockInputToDoc),
@@ -356,7 +346,7 @@ export const createExperiment = createServerFn({ method: "POST" })
   });
 
 interface UpdateExperimentInput {
-  _id: string;
+  id: string;
   name: LocalizedText;
   boxId?: string;
   overviews?: OverviewInput[];
@@ -368,7 +358,7 @@ export const updateExperiment = createServerFn({ method: "POST" })
   .inputValidator((data: UpdateExperimentInput) => data)
   .handler(async ({ data }): Promise<Experiment> => {
     const experiments = await getExperiments();
-    const experiment = await experiments.findOne({ _id: new ObjectId(data._id) });
+    const experiment = await experiments.findOne({ _id: new ObjectId(data.id) });
     if (!experiment) {
       throw new Error("Experiment not found");
     }
@@ -387,7 +377,7 @@ export const updateExperiment = createServerFn({ method: "POST" })
     }
 
     const updated = await experiments.findOneAndUpdate(
-      { _id: new ObjectId(data._id) },
+      { _id: new ObjectId(data.id) },
       {
         $set: {
           name: data.name,
