@@ -50,15 +50,11 @@ function BoxExperimentsPage() {
   return (
     <div className="pt-6">
       <div className="flex items-center gap-4 mb-6">
-        {box?.thumbnail?.startsWith("http") ? (
-          <img
-            src={box.thumbnail}
-            alt={getLocalized(box.name, language)}
-            className="w-16 h-16 rounded-lg object-cover"
-          />
-        ) : (
-          <span className="text-5xl">{box?.thumbnail}</span>
-        )}
+        <img
+          src={box.thumbnail}
+          alt={getLocalized(box.name, language)}
+          className="w-16 h-16 rounded-lg object-cover"
+        />
         <div>
           <h1 className="text-2xl font-bold">
             {box && getLocalized(box.name, language)}
@@ -77,8 +73,8 @@ function BoxExperimentsPage() {
           // Build completed keys set from this subscription's completions
           const completedTaskKeys = new Set(
             subscription.completions?.map(
-              (c) => `${c.taskId}-${c.dayNumber}`
-            ) ?? []
+              (c) => `${c.taskId}-${c.dayNumber}`,
+            ) ?? [],
           );
 
           return (
