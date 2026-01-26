@@ -51,7 +51,7 @@ function LoginPage() {
           return;
         }
       }
-      navigate({ to: "/today" });
+      navigate({ to: "/" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {

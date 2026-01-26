@@ -25,7 +25,7 @@ function ExperimentsPage() {
 
   return (
     <div className="container max-w-screen-sm mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold mb-6">Experiments</h1>
+      <h1 className="text-3xl font-bold mb-6">Labs</h1>
 
       <div className="grid gap-4">
         {boxes?.map((box) => (

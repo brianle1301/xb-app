@@ -16,7 +16,7 @@ const navItems = [
   },
   {
     to: "/experiments",
-    label: "Experiments",
+    label: "Labs",
     icon: FlaskConical,
   },
   {

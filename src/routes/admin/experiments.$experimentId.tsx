@@ -99,7 +99,7 @@ function EditExperimentPage() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6">
+    <div className="w-full max-w-7xl mx-auto p-6">
       <ExperimentEditor
         title={`Edit ${experiment.name.en || "(Untitled)"}`}
         experimentId={experiment.id}

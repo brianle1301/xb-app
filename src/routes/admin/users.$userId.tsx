@@ -201,7 +201,7 @@ function UserDetailPage() {
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6 space-y-8">
+    <div className="w-full max-w-7xl mx-auto p-6 space-y-8">
       <h1 className="text-2xl font-bold">User Details</h1>
 
       <Card>

@@ -84,7 +84,7 @@ function EditBoxPage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto w-full">
+    <div className="p-6 max-w-7xl mx-auto w-full">
       <BoxEditor
         title={`Edit ${box.name.en || "(Untitled)"}`}
         initialValues={{

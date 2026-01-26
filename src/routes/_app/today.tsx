@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import {
   Empty,
-  EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
@@ -60,10 +59,7 @@ function TodayPage() {
               <EmptyMedia variant="icon">
                 <FlaskConical className="size-5" />
               </EmptyMedia>
-              <EmptyTitle>No tasks for today</EmptyTitle>
-              <EmptyDescription>
-                Start an experiment to see your daily tasks here.
-              </EmptyDescription>
+              <EmptyTitle>No experiments for today</EmptyTitle>
             </EmptyHeader>
             <Button asChild>
               <Link to="/experiments">Browse Experiments</Link>
