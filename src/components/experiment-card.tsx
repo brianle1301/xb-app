@@ -189,7 +189,7 @@ export function TaskList({
                     <p className="text-muted-foreground">
                       {language === "es"
                         ? "Suscríbete al experimento para completar las tareas."
-                        : "Start the experiment to complete tasks."}
+                        : "Click on Start the Experiment to begin logging your experiences."}
                     </p>
                   </div>
                 </div>
@@ -526,9 +526,6 @@ export function ExperimentCard({
               {/* Overviews */}
               {experiment.overviews && experiment.overviews.length > 0 && (
                 <>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {language === "es" ? "Información:" : "Learn More:"}
-                  </p>
                   <div className="border rounded-lg bg-muted/50 overflow-hidden mb-5 divide-y divide-border">
                     {experiment.overviews.map((overview) => (
                       <button
@@ -574,9 +571,6 @@ export function ExperimentCard({
               {/* Today's tasks (started status) */}
               {status === "started" && currentDay && (
                 <>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Today's Tasks:
-                  </p>
                   <TaskList
                     tasks={experiment.days?.[currentDay - 1]?.tasks ?? []}
                     language={language}
