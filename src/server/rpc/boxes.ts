@@ -71,7 +71,7 @@ export const listPublishedBoxes = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async (): Promise<Box[]> => {
     const boxes = await getBoxes();
-    const docs = await boxes.find({ status: "published" }).toArray();
+    const docs = await boxes.find({ status: "published" }).sort({ order: 1 }).toArray();
     return docs.map(serializeBox);
   });
 
@@ -80,7 +80,7 @@ export const listAllBoxes = createServerFn({ method: "GET" })
   .middleware([adminMiddleware])
   .handler(async (): Promise<Box[]> => {
     const boxes = await getBoxes();
-    const docs = await boxes.find({}).toArray();
+    const docs = await boxes.find({}).sort({ order: 1 }).toArray();
     return docs.map(serializeBox);
   });
 

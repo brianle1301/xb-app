@@ -17,7 +17,7 @@ function BoxLayout() {
         className="flex items-center gap-2 text-primary mb-4 hover:underline"
       >
         <ChevronRight className="w-4 h-4 rotate-180" />
-        Back to boxes
+        Back to Labs
       </Link>
       <BoxTabBar currentBoxId={boxId} />
       <Outlet />
