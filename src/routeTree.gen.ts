@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
@@ -20,11 +21,13 @@ import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppExperimentsRouteImport } from './routes/_app/experiments'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users.index'
 import { Route as AdminExperimentsIndexRouteImport } from './routes/admin/experiments.index'
+import { Route as AdminDocumentsIndexRouteImport } from './routes/admin/documents.index'
 import { Route as AdminBoxesIndexRouteImport } from './routes/admin/boxes.index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
 import { Route as AdminExperimentsNewRouteImport } from './routes/admin/experiments.new'
 import { Route as AdminExperimentsExperimentIdRouteImport } from './routes/admin/experiments.$experimentId'
+import { Route as AdminDocumentsSlugRouteImport } from './routes/admin/documents.$slug'
 import { Route as AdminBoxesNewRouteImport } from './routes/admin/boxes.new'
 import { Route as AdminBoxesBoxIdRouteImport } from './routes/admin/boxes.$boxId'
 import { Route as AppBoxesBoxIdRouteImport } from './routes/_app/boxes/$boxId'
@@ -42,6 +45,11 @@ const AdminRoute = AdminRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SlugRoute = SlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -84,6 +92,11 @@ const AdminExperimentsIndexRoute = AdminExperimentsIndexRouteImport.update({
   path: '/experiments/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDocumentsIndexRoute = AdminDocumentsIndexRouteImport.update({
+  id: '/documents/',
+  path: '/documents/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminBoxesIndexRoute = AdminBoxesIndexRouteImport.update({
   id: '/boxes/',
   path: '/boxes/',
@@ -110,6 +123,11 @@ const AdminExperimentsExperimentIdRoute =
     path: '/experiments/$experimentId',
     getParentRoute: () => AdminRoute,
   } as any)
+const AdminDocumentsSlugRoute = AdminDocumentsSlugRouteImport.update({
+  id: '/documents/$slug',
+  path: '/documents/$slug',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminBoxesNewRoute = AdminBoxesNewRouteImport.update({
   id: '/boxes/new',
   path: '/boxes/new',
@@ -134,6 +152,7 @@ const AppBoxesBoxIdExperimentsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$slug': typeof SlugRoute
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/experiments': typeof AppExperimentsRoute
@@ -144,17 +163,20 @@ export interface FileRoutesByFullPath {
   '/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/admin/boxes/$boxId': typeof AdminBoxesBoxIdRoute
   '/admin/boxes/new': typeof AdminBoxesNewRoute
+  '/admin/documents/$slug': typeof AdminDocumentsSlugRoute
   '/admin/experiments/$experimentId': typeof AdminExperimentsExperimentIdRoute
   '/admin/experiments/new': typeof AdminExperimentsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/boxes': typeof AdminBoxesIndexRoute
+  '/admin/documents': typeof AdminDocumentsIndexRoute
   '/admin/experiments': typeof AdminExperimentsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$slug': typeof SlugRoute
   '/login': typeof LoginRoute
   '/experiments': typeof AppExperimentsRoute
   '/journal': typeof AppJournalRoute
@@ -164,11 +186,13 @@ export interface FileRoutesByTo {
   '/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/admin/boxes/$boxId': typeof AdminBoxesBoxIdRoute
   '/admin/boxes/new': typeof AdminBoxesNewRoute
+  '/admin/documents/$slug': typeof AdminDocumentsSlugRoute
   '/admin/experiments/$experimentId': typeof AdminExperimentsExperimentIdRoute
   '/admin/experiments/new': typeof AdminExperimentsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/boxes': typeof AdminBoxesIndexRoute
+  '/admin/documents': typeof AdminDocumentsIndexRoute
   '/admin/experiments': typeof AdminExperimentsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
@@ -176,6 +200,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$slug': typeof SlugRoute
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
@@ -187,11 +212,13 @@ export interface FileRoutesById {
   '/_app/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/admin/boxes/$boxId': typeof AdminBoxesBoxIdRoute
   '/admin/boxes/new': typeof AdminBoxesNewRoute
+  '/admin/documents/$slug': typeof AdminDocumentsSlugRoute
   '/admin/experiments/$experimentId': typeof AdminExperimentsExperimentIdRoute
   '/admin/experiments/new': typeof AdminExperimentsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/boxes/': typeof AdminBoxesIndexRoute
+  '/admin/documents/': typeof AdminDocumentsIndexRoute
   '/admin/experiments/': typeof AdminExperimentsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/_app/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
@@ -200,6 +227,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$slug'
     | '/admin'
     | '/login'
     | '/experiments'
@@ -210,17 +238,20 @@ export interface FileRouteTypes {
     | '/boxes/$boxId'
     | '/admin/boxes/$boxId'
     | '/admin/boxes/new'
+    | '/admin/documents/$slug'
     | '/admin/experiments/$experimentId'
     | '/admin/experiments/new'
     | '/admin/users/$userId'
     | '/api/auth/$'
     | '/admin/boxes'
+    | '/admin/documents'
     | '/admin/experiments'
     | '/admin/users'
     | '/boxes/$boxId/experiments'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$slug'
     | '/login'
     | '/experiments'
     | '/journal'
@@ -230,17 +261,20 @@ export interface FileRouteTypes {
     | '/boxes/$boxId'
     | '/admin/boxes/$boxId'
     | '/admin/boxes/new'
+    | '/admin/documents/$slug'
     | '/admin/experiments/$experimentId'
     | '/admin/experiments/new'
     | '/admin/users/$userId'
     | '/api/auth/$'
     | '/admin/boxes'
+    | '/admin/documents'
     | '/admin/experiments'
     | '/admin/users'
     | '/boxes/$boxId/experiments'
   id:
     | '__root__'
     | '/'
+    | '/$slug'
     | '/_app'
     | '/admin'
     | '/login'
@@ -252,11 +286,13 @@ export interface FileRouteTypes {
     | '/_app/boxes/$boxId'
     | '/admin/boxes/$boxId'
     | '/admin/boxes/new'
+    | '/admin/documents/$slug'
     | '/admin/experiments/$experimentId'
     | '/admin/experiments/new'
     | '/admin/users/$userId'
     | '/api/auth/$'
     | '/admin/boxes/'
+    | '/admin/documents/'
     | '/admin/experiments/'
     | '/admin/users/'
     | '/_app/boxes/$boxId/experiments'
@@ -264,6 +300,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SlugRoute: typeof SlugRoute
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -291,6 +328,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: ''
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$slug': {
+      id: '/$slug'
+      path: '/$slug'
+      fullPath: '/$slug'
+      preLoaderRoute: typeof SlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -349,6 +393,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminExperimentsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/documents/': {
+      id: '/admin/documents/'
+      path: '/documents'
+      fullPath: '/admin/documents'
+      preLoaderRoute: typeof AdminDocumentsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/boxes/': {
       id: '/admin/boxes/'
       path: '/boxes'
@@ -382,6 +433,13 @@ declare module '@tanstack/react-router' {
       path: '/experiments/$experimentId'
       fullPath: '/admin/experiments/$experimentId'
       preLoaderRoute: typeof AdminExperimentsExperimentIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/documents/$slug': {
+      id: '/admin/documents/$slug'
+      path: '/documents/$slug'
+      fullPath: '/admin/documents/$slug'
+      preLoaderRoute: typeof AdminDocumentsSlugRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/boxes/new': {
@@ -449,10 +507,12 @@ interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminBoxesBoxIdRoute: typeof AdminBoxesBoxIdRoute
   AdminBoxesNewRoute: typeof AdminBoxesNewRoute
+  AdminDocumentsSlugRoute: typeof AdminDocumentsSlugRoute
   AdminExperimentsExperimentIdRoute: typeof AdminExperimentsExperimentIdRoute
   AdminExperimentsNewRoute: typeof AdminExperimentsNewRoute
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
   AdminBoxesIndexRoute: typeof AdminBoxesIndexRoute
+  AdminDocumentsIndexRoute: typeof AdminDocumentsIndexRoute
   AdminExperimentsIndexRoute: typeof AdminExperimentsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
@@ -461,10 +521,12 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminBoxesBoxIdRoute: AdminBoxesBoxIdRoute,
   AdminBoxesNewRoute: AdminBoxesNewRoute,
+  AdminDocumentsSlugRoute: AdminDocumentsSlugRoute,
   AdminExperimentsExperimentIdRoute: AdminExperimentsExperimentIdRoute,
   AdminExperimentsNewRoute: AdminExperimentsNewRoute,
   AdminUsersUserIdRoute: AdminUsersUserIdRoute,
   AdminBoxesIndexRoute: AdminBoxesIndexRoute,
+  AdminDocumentsIndexRoute: AdminDocumentsIndexRoute,
   AdminExperimentsIndexRoute: AdminExperimentsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
@@ -473,6 +535,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SlugRoute: SlugRoute,
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   LoginRoute: LoginRoute,

@@ -1,4 +1,5 @@
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { signIn, signUp } from "@/lib/auth-client";
+import { hashContent } from "@/lib/hash";
+import { documentBySlugQuery } from "@/queries/documents";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -23,6 +26,27 @@ function LoginPage() {
   const [name, setName] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+
+  const { data: preRegDoc, isLoading: isLoadingDoc } = useQuery(
+    documentBySlugQuery("pre-registration"),
+  );
+
+  // Redirect to pre-registration document if published and not yet seen (or content changed)
+  React.useEffect(() => {
+    if (isLoadingDoc) return;
+    if (!preRegDoc) return;
+
+    const currentHash = hashContent(preRegDoc.content);
+    const seenHash = localStorage.getItem("preRegistrationSeenHash");
+
+    if (seenHash !== currentHash) {
+      navigate({
+        to: "/$slug",
+        params: { slug: "pre-registration" },
+        search: { redirect: "/login" },
+      });
+    }
+  }, [isLoadingDoc, preRegDoc, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

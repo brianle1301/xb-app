@@ -104,3 +104,13 @@ export interface JournalEntryWithPopulatedDoc extends Omit<JournalEntryDoc, "exp
   experimentId: ExperimentDoc;
   taskId: TaskDoc;
 }
+
+export interface DocumentDoc {
+  _id: ObjectId;
+  slug: string;
+  title: LocalizedText;
+  content: LocalizedText;
+  status: "draft" | "published";
+  createdAt: Date;
+  updatedAt: Date;
+}

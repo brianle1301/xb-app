@@ -4,7 +4,7 @@ import {
   notFound,
   Outlet,
 } from "@tanstack/react-router";
-import { Box, FlaskConical, Users } from "lucide-react";
+import { Box, FileText, FlaskConical, Users } from "lucide-react";
 
 import {
   Sidebar,
@@ -24,6 +24,7 @@ const navItems = [
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Boxes", url: "/admin/boxes", icon: Box },
   { title: "Experiments", url: "/admin/experiments", icon: FlaskConical },
+  { title: "Documents", url: "/admin/documents", icon: FileText },
 ];
 
 export const Route = createFileRoute("/admin")({
