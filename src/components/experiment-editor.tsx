@@ -31,6 +31,7 @@ import {
   Hash,
   List,
   Plus,
+  SlidersHorizontal,
   Trash2,
   Type,
 } from "lucide-react";
@@ -148,11 +149,25 @@ export interface SelectBlockFormValue {
   options: SelectOptionFormValue[];
 }
 
+export interface SliderBlockFormValue {
+  type: "slider";
+  id: string;
+  labelEn: string;
+  labelEs: string;
+  helpTextEn: string;
+  helpTextEs: string;
+  required: boolean;
+  min: number;
+  max: number;
+  step: number;
+}
+
 export type BlockFormValue =
   | MarkdownBlockFormValue
   | TextBlockFormValue
   | NumberBlockFormValue
-  | SelectBlockFormValue;
+  | SelectBlockFormValue
+  | SliderBlockFormValue;
 
 export interface TaskFormValue {
   id: string;
@@ -216,6 +231,16 @@ export type BlockApiInput =
       required?: boolean;
       multiple?: boolean;
       options: SelectOptionApiInput[];
+    }
+  | {
+      type: "slider";
+      id: string;
+      label: { en: string; es: string };
+      helpText?: { en: string; es: string };
+      required?: boolean;
+      min: number;
+      max: number;
+      step: number;
     };
 
 export interface TaskApiInput {
@@ -290,6 +315,20 @@ function blockToFormValue(block: Block): BlockFormValue {
       required: block.required ?? false,
     };
   }
+  if (block.type === "slider") {
+    return {
+      type: "slider",
+      id: block.id,
+      labelEn: block.label.en,
+      labelEs: block.label.es,
+      helpTextEn: block.helpText?.en ?? "",
+      helpTextEs: block.helpText?.es ?? "",
+      required: block.required ?? false,
+      min: block.min,
+      max: block.max,
+      step: block.step,
+    };
+  }
   // select
   return {
     type: "select",
@@ -346,6 +385,21 @@ function formValueToBlock(value: BlockFormValue): BlockApiInput {
           ? { en: value.placeholderEn, es: value.placeholderEs }
           : undefined,
       required: value.required || undefined,
+    };
+  }
+  if (value.type === "slider") {
+    return {
+      type: "slider",
+      id: value.id,
+      label: { en: value.labelEn, es: value.labelEs },
+      helpText:
+        value.helpTextEn || value.helpTextEs
+          ? { en: value.helpTextEn, es: value.helpTextEs }
+          : undefined,
+      required: value.required || undefined,
+      min: value.min,
+      max: value.max,
+      step: value.step,
     };
   }
   // select
@@ -544,6 +598,7 @@ const blockTypeInfo = {
   text: { icon: Type, label: "Text Input" },
   number: { icon: Hash, label: "Number Input" },
   select: { icon: List, label: "Select" },
+  slider: { icon: SlidersHorizontal, label: "Slider" },
 };
 
 function BlockEditor({
@@ -968,6 +1023,137 @@ function BlockEditor({
                 </form.Field>
               </>
             )}
+
+            {blockType === "slider" && (
+              <>
+                <form.Field name={`${basePath}.labelEn`}>
+                  {(subField: {
+                    state: { value: string };
+                    handleChange: (v: string) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Label (English)</FieldLabel>
+                      <Input
+                        value={subField.state.value}
+                        onChange={(e) => subField.handleChange(e.target.value)}
+                        placeholder="Field label..."
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.labelEs`}>
+                  {(subField: {
+                    state: { value: string };
+                    handleChange: (v: string) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Label (Spanish)</FieldLabel>
+                      <Input
+                        value={subField.state.value}
+                        onChange={(e) => subField.handleChange(e.target.value)}
+                        placeholder="Etiqueta del campo..."
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.helpTextEn`}>
+                  {(subField: {
+                    state: { value: string };
+                    handleChange: (v: string) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Help Text (English)</FieldLabel>
+                      <Input
+                        value={subField.state.value}
+                        onChange={(e) => subField.handleChange(e.target.value)}
+                        placeholder="Optional help text..."
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.helpTextEs`}>
+                  {(subField: {
+                    state: { value: string };
+                    handleChange: (v: string) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Help Text (Spanish)</FieldLabel>
+                      <Input
+                        value={subField.state.value}
+                        onChange={(e) => subField.handleChange(e.target.value)}
+                        placeholder="Texto de ayuda opcional..."
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.min`}>
+                  {(subField: {
+                    state: { value: number };
+                    handleChange: (v: number) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Min</FieldLabel>
+                      <Input
+                        type="number"
+                        value={subField.state.value}
+                        onChange={(e) =>
+                          subField.handleChange(Number(e.target.value))
+                        }
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.max`}>
+                  {(subField: {
+                    state: { value: number };
+                    handleChange: (v: number) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Max</FieldLabel>
+                      <Input
+                        type="number"
+                        value={subField.state.value}
+                        onChange={(e) =>
+                          subField.handleChange(Number(e.target.value))
+                        }
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.step`}>
+                  {(subField: {
+                    state: { value: number };
+                    handleChange: (v: number) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Step</FieldLabel>
+                      <Input
+                        type="number"
+                        value={subField.state.value}
+                        onChange={(e) =>
+                          subField.handleChange(Number(e.target.value))
+                        }
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.required`}>
+                  {(subField: {
+                    state: { value: boolean };
+                    handleChange: (v: boolean) => void;
+                  }) => (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`${basePath}.required`}
+                        checked={subField.state.value}
+                        onCheckedChange={subField.handleChange}
+                      />
+                      <Label htmlFor={`${basePath}.required`}>Required</Label>
+                    </div>
+                  )}
+                </form.Field>
+              </>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -1073,6 +1259,20 @@ function TaskEditor({
         placeholderEn: "",
         placeholderEs: "",
         required: false,
+      };
+    }
+    if (type === "slider") {
+      return {
+        type: "slider",
+        id,
+        labelEn: "",
+        labelEs: "",
+        helpTextEn: "",
+        helpTextEs: "",
+        required: false,
+        min: 0,
+        max: 100,
+        step: 1,
       };
     }
     return {
@@ -1223,6 +1423,12 @@ function TaskEditor({
                         >
                           <List className="size-4" />
                           Select
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => field.pushValue(createBlock("slider"))}
+                        >
+                          <SlidersHorizontal className="size-4" />
+                          Slider
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1878,6 +2084,18 @@ export function ExperimentEditor({
                               es: b.placeholderEs,
                             },
                             required: b.required,
+                          };
+                        }
+                        if (b.type === "slider") {
+                          return {
+                            type: "slider" as const,
+                            id: b.id,
+                            label: { en: b.labelEn, es: b.labelEs },
+                            helpText: { en: b.helpTextEn, es: b.helpTextEs },
+                            required: b.required,
+                            min: b.min,
+                            max: b.max,
+                            step: b.step,
                           };
                         }
                         // select

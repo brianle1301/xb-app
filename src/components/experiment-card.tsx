@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { getLocalized } from "@/lib/language-context";
 import type {
@@ -93,7 +94,7 @@ export function TaskList({
     const requiredBlocks =
       selectedTask.blocks?.filter(
         (b): b is Block & { id: string; required: true } =>
-          (b.type === "text" || b.type === "number" || b.type === "select") &&
+          (b.type === "text" || b.type === "number" || b.type === "select" || b.type === "slider") &&
           !!b.required,
       ) || [];
     const missingRequired = requiredBlocks.some(
@@ -376,6 +377,45 @@ export function TaskList({
                             ))}
                           </RadioGroup>
                         </FieldSet>
+                      );
+                    }
+
+                    if (block.type === "slider") {
+                      const currentValue = formResponses[block.id]
+                        ? Number(formResponses[block.id])
+                        : block.min;
+                      return (
+                        <Field key={index}>
+                          <FieldLabel>
+                            {getLocalized(block.label, language)}
+                            {block.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </FieldLabel>
+                          <div className="flex items-center gap-3">
+                            <Slider
+                              min={block.min}
+                              max={block.max}
+                              step={block.step}
+                              value={[currentValue]}
+                              onValueChange={([val]) =>
+                                setFormResponses((prev) => ({
+                                  ...prev,
+                                  [block.id]: String(val),
+                                }))
+                              }
+                              disabled={isDisabled}
+                            />
+                            <span className="text-sm font-medium tabular-nums w-10 text-right">
+                              {currentValue}
+                            </span>
+                          </div>
+                          {block.helpText && (
+                            <FieldDescription>
+                              {getLocalized(block.helpText, language)}
+                            </FieldDescription>
+                          )}
+                        </Field>
                       );
                     }
 

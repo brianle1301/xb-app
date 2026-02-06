@@ -59,10 +59,21 @@ export interface SelectBlock {
   options: SelectOption[];
 }
 
-export type Block = MarkdownBlock | TextBlock | NumberBlock | SelectBlock;
+export interface SliderBlock {
+  type: "slider";
+  id: string;
+  label: LocalizedText;
+  helpText?: LocalizedText;
+  required?: boolean;
+  min: number;
+  max: number;
+  step: number;
+}
+
+export type Block = MarkdownBlock | TextBlock | NumberBlock | SelectBlock | SliderBlock;
 
 // Helper type for blocks that collect user input
-export type InputBlock = TextBlock | NumberBlock | SelectBlock;
+export type InputBlock = TextBlock | NumberBlock | SelectBlock | SliderBlock;
 
 // ============ Overview ============
 

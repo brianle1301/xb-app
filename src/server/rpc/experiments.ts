@@ -145,6 +145,24 @@ function serializeBlock(doc: BlockDoc): Block {
     };
   }
 
+  if (doc.type === "slider") {
+    return {
+      type: "slider",
+      id: doc.id!,
+      label: {
+        en: doc.label?.en || "",
+        es: doc.label?.es || "",
+      },
+      helpText: doc.helpText
+        ? { en: doc.helpText.en || "", es: doc.helpText.es || "" }
+        : undefined,
+      required: doc.required,
+      min: doc.min ?? 0,
+      max: doc.max ?? 100,
+      step: doc.step ?? 1,
+    };
+  }
+
   // select
   return {
     type: "select",
@@ -247,6 +265,16 @@ type BlockInput =
       helpText?: { en: string; es: string };
       required?: boolean;
       options: SelectOptionInput[];
+    }
+  | {
+      type: "slider";
+      id: string;
+      label: { en: string; es: string };
+      helpText?: { en: string; es: string };
+      required?: boolean;
+      min: number;
+      max: number;
+      step: number;
     };
 
 interface TaskInput {
@@ -296,6 +324,18 @@ function blockInputToDoc(b: BlockInput): BlockDoc {
       helpText: b.helpText,
       placeholder: b.placeholder,
       required: b.required,
+    };
+  }
+  if (b.type === "slider") {
+    return {
+      type: "slider",
+      id: b.id,
+      label: b.label,
+      helpText: b.helpText,
+      required: b.required,
+      min: b.min,
+      max: b.max,
+      step: b.step,
     };
   }
   // select

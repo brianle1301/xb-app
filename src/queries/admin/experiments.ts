@@ -53,6 +53,16 @@ type BlockInput =
       helpText?: { en: string; es: string };
       required?: boolean;
       options: SelectOptionInput[];
+    }
+  | {
+      type: "slider";
+      id: string;
+      label: { en: string; es: string };
+      helpText?: { en: string; es: string };
+      required?: boolean;
+      min: number;
+      max: number;
+      step: number;
     };
 
 interface TaskInput {
