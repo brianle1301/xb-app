@@ -39,7 +39,7 @@ function ExperimentsPage() {
       <h1 className="text-3xl font-bold mb-6">Labs</h1>
 
       <div className="grid gap-4">
-        {labOverview && (
+        {labOverview?.status === "published" && (
           <Card>
             <CardLink asChild>
               <Link to="/$slug" params={{ slug: "lab-overview" }} />

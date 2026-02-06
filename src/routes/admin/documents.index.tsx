@@ -6,7 +6,7 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { DataTable, DataTableColumnHeader } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { allDocumentsQuery } from "@/queries/admin/documents";
-import type { DocumentInfo } from "@/server/rpc/documents";
+import type { Document } from "@/server/rpc/documents";
 
 export const Route = createFileRoute("/admin/documents/")({
   loader: async ({ context }) => {
@@ -15,16 +15,16 @@ export const Route = createFileRoute("/admin/documents/")({
   component: DocumentsPage,
 });
 
-const ch = createColumnHelper<DocumentInfo>();
+const ch = createColumnHelper<Document>();
 
 function DocumentsPage() {
   const { data: documents } = useSuspenseQuery(allDocumentsQuery());
 
   const columns = React.useMemo(
     () => [
-      ch.accessor("name", {
+      ch.accessor("slug", {
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Name" />
+          <DataTableColumnHeader column={column} title="Slug" />
         ),
         cell: ({ row }) => (
           <Link
@@ -32,22 +32,22 @@ function DocumentsPage() {
             params={{ slug: row.original.slug }}
             className="font-medium hover:underline"
           >
-            {row.original.name}
+            {row.original.slug}
           </Link>
         ),
       }),
-      ch.accessor("description", {
-        header: "Description",
+      ch.accessor((row) => row.title.en, {
+        id: "title",
+        header: "Title",
         cell: (info) => (
           <span className="text-muted-foreground">{info.getValue()}</span>
         ),
         enableSorting: false,
       }),
-      ch.accessor((row) => row.document?.status, {
-        id: "status",
+      ch.accessor("status", {
         header: "Status",
         cell: ({ row }) => {
-          const status = row.original.document?.status ?? "draft";
+          const status = row.original.status;
           return (
             <Badge variant={status === "published" ? "default" : "secondary"}>
               {status}
@@ -56,12 +56,10 @@ function DocumentsPage() {
         },
         enableSorting: false,
       }),
-      ch.accessor((row) => row.document?.updatedAt, {
-        id: "updatedAt",
+      ch.accessor("updatedAt", {
         header: "Updated",
         cell: ({ row }) => {
-          const updatedAt = row.original.document?.updatedAt;
-          if (!updatedAt) return <span className="text-muted-foreground">—</span>;
+          const updatedAt = row.original.updatedAt;
           return (
             <span className="text-muted-foreground text-sm">
               {new Date(updatedAt).toLocaleDateString()}

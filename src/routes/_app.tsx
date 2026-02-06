@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app")({
         documentBySlugQuery("post-registration"),
       );
 
-      if (postRegDoc) {
+      if (postRegDoc?.status === "published") {
         const currentHash = hashContent(postRegDoc.content);
         const seenHash = localStorage.getItem("postRegistrationSeenHash");
 

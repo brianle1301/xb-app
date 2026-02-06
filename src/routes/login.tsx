@@ -34,7 +34,7 @@ function LoginPage() {
   // Redirect to pre-registration document if published and not yet seen (or content changed)
   React.useEffect(() => {
     if (isLoadingDoc) return;
-    if (!preRegDoc) return;
+    if (!preRegDoc || preRegDoc.status !== "published") return;
 
     const currentHash = hashContent(preRegDoc.content);
     const seenHash = localStorage.getItem("preRegistrationSeenHash");

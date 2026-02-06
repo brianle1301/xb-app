@@ -12,7 +12,6 @@ import {
   useUnpublishDocumentMutation,
   useUpdateDocumentMutation,
 } from "@/queries/admin/documents";
-import { DOCUMENT_SLUGS } from "@/server/rpc/documents";
 
 export const Route = createFileRoute("/admin/documents/$slug")({
   loader: async ({ context, params }) => {
@@ -27,8 +26,6 @@ function EditDocumentPage() {
   const updateMutation = useUpdateDocumentMutation();
   const publishMutation = usePublishDocumentMutation();
   const unpublishMutation = useUnpublishDocumentMutation();
-
-  const slugInfo = DOCUMENT_SLUGS.find((s) => s.slug === slug);
 
   const handleSave = (values: DocumentFormValues) => {
     updateMutation.mutate(
@@ -87,7 +84,7 @@ function EditDocumentPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto w-full">
       <DocumentEditor
-        title={slugInfo?.name ?? slug}
+        title={doc.title.en || slug}
         initialValues={{
           titleEn: doc.title.en,
           titleEs: doc.title.es,

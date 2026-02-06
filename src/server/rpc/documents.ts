@@ -8,17 +8,6 @@ import { adminMiddleware } from "./auth";
 import { getDocuments } from "../db/client";
 import type { DocumentDoc } from "../db/types";
 
-// ============ Predefined Document Slugs ============
-
-export const DOCUMENT_SLUGS = [
-  { slug: "pre-registration", name: "Pre-Registration", description: "Shown to visitors before they sign up" },
-  { slug: "post-registration", name: "Post-Registration", description: "Shown to users after their first login" },
-  { slug: "lab-overview", name: "Lab Overview", description: "Shown at the top of the Labs page" },
-] as const;
-
-export type DocumentSlug = (typeof DOCUMENT_SLUGS)[number]["slug"];
-
-
 // ============ Validation ============
 
 export const publishedDocumentSchema = z.object({
@@ -81,7 +70,7 @@ export const getDocumentBySlug = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: slug }): Promise<Document | null> => {
     const documents = await getDocuments();
-    const doc = await documents.findOne({ slug, status: "published" });
+    const doc = await documents.findOne({ slug });
     if (!doc) {
       return null;
     }
@@ -90,30 +79,13 @@ export const getDocumentBySlug = createServerFn({ method: "POST" })
 
 // ============ Admin RPC Functions ============
 
-// Document info for admin list (includes predefined metadata)
-export interface DocumentInfo {
-  slug: string;
-  name: string;
-  description: string;
-  document: Document | null;
-}
-
-// List all predefined documents with their data (admin)
+// List all documents (admin)
 export const listAllDocuments = createServerFn({ method: "GET" })
   .middleware([adminMiddleware])
-  .handler(async (): Promise<DocumentInfo[]> => {
+  .handler(async (): Promise<Document[]> => {
     const documents = await getDocuments();
     const docs = await documents.find({}).toArray();
-    const docsBySlug = new Map(docs.map((d) => [d.slug, d]));
-
-    return DOCUMENT_SLUGS.map((slugInfo) => ({
-      slug: slugInfo.slug,
-      name: slugInfo.name,
-      description: slugInfo.description,
-      document: docsBySlug.has(slugInfo.slug)
-        ? serializeDocument(docsBySlug.get(slugInfo.slug)!)
-        : null,
-    }));
+    return docs.map(serializeDocument);
   });
 
 // Get document by slug (admin)
@@ -121,16 +93,10 @@ export const getDocumentBySlugAdmin = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
   .inputValidator((data: string) => data)
   .handler(async ({ data: slug }): Promise<Document> => {
-    // Validate slug is predefined
-    const slugInfo = DOCUMENT_SLUGS.find((s) => s.slug === slug);
-    if (!slugInfo) {
-      throw new Error(`Invalid document slug: ${slug}`);
-    }
-
     const documents = await getDocuments();
     const doc = await documents.findOne({ slug });
     if (!doc) {
-      throw new Error(`Document "${slug}" not found. Documents must be pre-created.`);
+      throw new Error(`Document "${slug}" not found`);
     }
 
     return serializeDocument(doc);

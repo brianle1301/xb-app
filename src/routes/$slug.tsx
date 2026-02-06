@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
-  notFound,
   useNavigate,
   useSearch,
 } from "@tanstack/react-router";
@@ -14,7 +13,6 @@ import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { hashContent } from "@/lib/hash";
 import { documentBySlugQuery } from "@/queries/documents";
-import { DOCUMENT_SLUGS } from "@/server/rpc/documents";
 import type { Language } from "@/types/shared";
 
 function getBrowserLanguage(): Language {
@@ -29,13 +27,6 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/$slug")({
   validateSearch: searchSchema,
-  beforeLoad: ({ params }) => {
-    // Only allow predefined document slugs
-    const isValidSlug = DOCUMENT_SLUGS.some((s) => s.slug === params.slug);
-    if (!isValidSlug) {
-      throw notFound();
-    }
-  },
   component: DocumentPage,
 });
 
@@ -50,21 +41,20 @@ function DocumentPage() {
   const isPostRegistration = slug === "post-registration";
   const isTracked = isPreRegistration || isPostRegistration;
 
+  const isPublished = document?.status === "published";
+
   // If document isn't published and it's a tracked document, redirect back
   React.useEffect(() => {
-    if (!isLoading && !document && isTracked) {
+    if (!isLoading && !isPublished && isTracked) {
       navigate({ to: redirectTo ?? "/login" });
     }
-  }, [isLoading, document, isTracked, redirectTo, navigate]);
+  }, [isLoading, isPublished, isTracked, redirectTo, navigate]);
 
   if (isLoading) {
     return null;
   }
 
-  if (!document) {
-    if (!isTracked) {
-      return null;
-    }
+  if (!isPublished) {
     return null;
   }
 
