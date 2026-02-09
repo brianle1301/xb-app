@@ -68,16 +68,19 @@ function formatElapsed(totalSeconds: number): string {
 function StopwatchInput({
   blockId,
   resettable,
+  duration,
   disabled,
   value,
   onChange,
 }: {
   blockId: string;
   resettable: boolean;
+  duration?: number;
   disabled: boolean;
   value: string;
   onChange: (value: string) => void;
 }) {
+  const isCountdown = !!duration && duration > 0;
   const [elapsedSeconds, setElapsedSeconds] = React.useState(() =>
     value ? Number(value) : 0,
   );
@@ -91,8 +94,20 @@ function StopwatchInput({
     };
   }, []);
 
+  // Auto-stop when countdown reaches zero
+  React.useEffect(() => {
+    if (isCountdown && isRunning && elapsedSeconds >= duration) {
+      setIsRunning(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  }, [isCountdown, isRunning, elapsedSeconds, duration]);
+
   const start = () => {
     if (isRunning || disabled) return;
+    if (isCountdown && elapsedSeconds >= duration) return;
     setIsRunning(true);
     intervalRef.current = setInterval(() => {
       setElapsedSeconds((prev) => {
@@ -118,10 +133,16 @@ function StopwatchInput({
     onChange("0");
   };
 
+  const displaySeconds = isCountdown
+    ? Math.max(0, duration - elapsedSeconds)
+    : elapsedSeconds;
+
+  const isFinished = isCountdown && elapsedSeconds >= duration;
+
   return (
     <div className="space-y-3">
       <div className="text-3xl font-mono text-center tabular-nums">
-        {formatElapsed(elapsedSeconds)}
+        {formatElapsed(displaySeconds)}
       </div>
       <div className="flex gap-2 justify-center">
         {!isRunning ? (
@@ -129,7 +150,7 @@ function StopwatchInput({
             type="button"
             size="sm"
             onClick={start}
-            disabled={disabled}
+            disabled={disabled || isFinished}
           >
             <Play className="w-4 h-4 mr-1" />
             Start
@@ -556,6 +577,7 @@ export function TaskList({
                           <StopwatchInput
                             blockId={block.id}
                             resettable={block.resettable !== false}
+                            duration={block.duration}
                             disabled={isDisabled}
                             value={formResponses[block.id] || ""}
                             onChange={(value) =>

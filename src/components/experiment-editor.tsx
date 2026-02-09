@@ -179,6 +179,7 @@ export interface StopwatchBlockFormValue {
   helpTextEs: string;
   required: boolean;
   resettable: boolean;
+  duration: number;
 }
 
 export type BlockFormValue =
@@ -324,6 +325,7 @@ function blockToFormValue(block: Block): BlockFormValue {
       helpTextEs: block.helpText?.es ?? "",
       required: block.required ?? false,
       resettable: block.resettable ?? true,
+      duration: block.duration ?? 0,
     };
   }
   // select
@@ -411,6 +413,7 @@ function formValueToBlock(value: BlockFormValue): BlockApiInput {
           : undefined,
       required: value.required || undefined,
       resettable: value.resettable === false ? false : undefined,
+      duration: value.duration > 0 ? value.duration : undefined,
     };
   }
   // select
@@ -1323,6 +1326,51 @@ function BlockEditor({
                     </div>
                   )}
                 </form.Field>
+                <form.Field name={`${basePath}.duration`}>
+                  {(subField: {
+                    state: { value: number };
+                    handleChange: (v: number) => void;
+                  }) => {
+                    const totalSeconds = subField.state.value || 0;
+                    const mins = Math.floor(totalSeconds / 60);
+                    const secs = totalSeconds % 60;
+                    return (
+                      <Field>
+                        <FieldLabel>Countdown Duration</FieldLabel>
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            type="number"
+                            min={0}
+                            className="w-20"
+                            placeholder="Min"
+                            value={mins}
+                            onChange={(e) => {
+                              const newMins = Math.max(0, Number(e.target.value) || 0);
+                              subField.handleChange(newMins * 60 + secs);
+                            }}
+                          />
+                          <span className="text-sm text-muted-foreground">min</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={59}
+                            className="w-20"
+                            placeholder="Sec"
+                            value={secs}
+                            onChange={(e) => {
+                              const newSecs = Math.max(0, Math.min(59, Number(e.target.value) || 0));
+                              subField.handleChange(mins * 60 + newSecs);
+                            }}
+                          />
+                          <span className="text-sm text-muted-foreground">sec</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Leave at 0 for stopwatch mode (count up).
+                        </p>
+                      </Field>
+                    );
+                  }}
+                </form.Field>
               </>
             )}
           </div>
@@ -1457,6 +1505,7 @@ function TaskEditor({
         helpTextEs: "",
         required: false,
         resettable: true,
+        duration: 0,
       };
     }
     return {
@@ -2297,6 +2346,7 @@ export function ExperimentEditor({
                             helpText: { en: b.helpTextEn, es: b.helpTextEs },
                             required: b.required,
                             resettable: b.resettable,
+                            duration: b.duration > 0 ? b.duration : undefined,
                           };
                         }
                         // select

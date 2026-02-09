@@ -83,6 +83,7 @@ export interface StopwatchBlock {
   helpText?: LocalizedText;
   required?: boolean;
   resettable?: boolean;
+  duration?: number;
 }
 
 export type Block = MarkdownBlock | TextBlock | NumberBlock | SelectBlock | SliderBlock | StopwatchBlock;

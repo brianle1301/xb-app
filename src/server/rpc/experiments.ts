@@ -177,6 +177,7 @@ function serializeBlock(doc: BlockDoc): Block {
         : undefined,
       required: doc.required,
       resettable: doc.resettable,
+      duration: doc.duration,
     };
   }
 
@@ -302,6 +303,7 @@ export type BlockInput =
       helpText?: { en: string; es: string };
       required?: boolean;
       resettable?: boolean;
+      duration?: number;
     };
 
 interface TaskInput {
@@ -374,6 +376,7 @@ function blockInputToDoc(b: BlockInput): BlockDoc {
       helpText: b.helpText,
       required: b.required,
       resettable: b.resettable,
+      duration: b.duration,
     };
   }
   // select

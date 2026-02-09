@@ -31,6 +31,7 @@ export interface BlockDoc {
   step?: number;
   tickmarks?: { value: number; label: string }[];
   resettable?: boolean;
+  duration?: number;
 }
 
 export interface TaskDoc {
