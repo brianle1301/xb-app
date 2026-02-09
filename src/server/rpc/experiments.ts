@@ -160,6 +160,7 @@ function serializeBlock(doc: BlockDoc): Block {
       min: doc.min ?? 0,
       max: doc.max ?? 100,
       step: doc.step ?? 1,
+      tickmarks: doc.tickmarks,
     };
   }
 
@@ -275,6 +276,7 @@ type BlockInput =
       min: number;
       max: number;
       step: number;
+      tickmarks?: { value: number; label: string }[];
     };
 
 interface TaskInput {
@@ -336,6 +338,7 @@ function blockInputToDoc(b: BlockInput): BlockDoc {
       min: b.min,
       max: b.max,
       step: b.step,
+      tickmarks: b.tickmarks,
     };
   }
   // select

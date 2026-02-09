@@ -149,6 +149,11 @@ export interface SelectBlockFormValue {
   options: SelectOptionFormValue[];
 }
 
+export interface SliderTickmarkFormValue {
+  value: number;
+  label: string;
+}
+
 export interface SliderBlockFormValue {
   type: "slider";
   id: string;
@@ -160,6 +165,7 @@ export interface SliderBlockFormValue {
   min: number;
   max: number;
   step: number;
+  tickmarks: SliderTickmarkFormValue[];
 }
 
 export type BlockFormValue =
@@ -241,6 +247,7 @@ export type BlockApiInput =
       min: number;
       max: number;
       step: number;
+      tickmarks?: { value: number; label: string }[];
     };
 
 export interface TaskApiInput {
@@ -327,6 +334,7 @@ function blockToFormValue(block: Block): BlockFormValue {
       min: block.min,
       max: block.max,
       step: block.step,
+      tickmarks: (block.tickmarks ?? []).map((t) => ({ value: t.value, label: t.label })),
     };
   }
   // select
@@ -400,6 +408,7 @@ function formValueToBlock(value: BlockFormValue): BlockApiInput {
       min: value.min,
       max: value.max,
       step: value.step,
+      tickmarks: value.tickmarks.length > 0 ? value.tickmarks : undefined,
     };
   }
   // select
@@ -1137,6 +1146,68 @@ function BlockEditor({
                     </Field>
                   )}
                 </form.Field>
+                <form.Field name={`${basePath}.tickmarks`}>
+                  {(subField: {
+                    state: { value: SliderTickmarkFormValue[] };
+                    handleChange: (v: SliderTickmarkFormValue[]) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Tickmarks</FieldLabel>
+                      <div className="space-y-2">
+                        {subField.state.value.map((tick, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              className="w-20"
+                              placeholder="Value"
+                              value={tick.value}
+                              onChange={(e) => {
+                                const updated = [...subField.state.value];
+                                updated[i] = { ...updated[i], value: Number(e.target.value) };
+                                subField.handleChange(updated);
+                              }}
+                            />
+                            <Input
+                              className="flex-1"
+                              placeholder="Label"
+                              value={tick.label}
+                              onChange={(e) => {
+                                const updated = [...subField.state.value];
+                                updated[i] = { ...updated[i], label: e.target.value };
+                                subField.handleChange(updated);
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                const updated = subField.state.value.filter((_, j) => j !== i);
+                                subField.handleChange(updated);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            subField.handleChange([
+                              ...subField.state.value,
+                              { value: 0, label: "" },
+                            ]);
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Tickmark
+                        </Button>
+                      </div>
+                    </Field>
+                  )}
+                </form.Field>
                 <form.Field name={`${basePath}.required`}>
                   {(subField: {
                     state: { value: boolean };
@@ -1273,6 +1344,7 @@ function TaskEditor({
         min: 0,
         max: 100,
         step: 1,
+        tickmarks: [],
       };
     }
     return {
@@ -2096,6 +2168,7 @@ export function ExperimentEditor({
                             min: b.min,
                             max: b.max,
                             step: b.step,
+                            tickmarks: b.tickmarks,
                           };
                         }
                         // select

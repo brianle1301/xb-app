@@ -59,6 +59,11 @@ export interface SelectBlock {
   options: SelectOption[];
 }
 
+export interface SliderTickmark {
+  value: number;
+  label: string;
+}
+
 export interface SliderBlock {
   type: "slider";
   id: string;
@@ -68,6 +73,7 @@ export interface SliderBlock {
   min: number;
   max: number;
   step: number;
+  tickmarks?: SliderTickmark[];
 }
 
 export type Block = MarkdownBlock | TextBlock | NumberBlock | SelectBlock | SliderBlock;

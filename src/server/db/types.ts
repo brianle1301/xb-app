@@ -29,6 +29,7 @@ export interface BlockDoc {
   min?: number;
   max?: number;
   step?: number;
+  tickmarks?: { value: number; label: string }[];
 }
 
 export interface TaskDoc {

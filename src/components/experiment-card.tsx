@@ -392,7 +392,7 @@ export function TaskList({
                               <span className="text-destructive ml-1">*</span>
                             )}
                           </FieldLabel>
-                          <div className="flex items-center gap-3">
+                          <div>
                             <Slider
                               min={block.min}
                               max={block.max}
@@ -406,9 +406,22 @@ export function TaskList({
                               }
                               disabled={isDisabled}
                             />
-                            <span className="text-sm font-medium tabular-nums w-10 text-right">
-                              {currentValue}
-                            </span>
+                            {block.tickmarks && block.tickmarks.length > 0 && (
+                              <div className="relative w-full mt-1 h-5">
+                                {block.tickmarks.map((tick, i) => {
+                                  const pct = ((tick.value - block.min) / (block.max - block.min)) * 100;
+                                  return (
+                                    <span
+                                      key={i}
+                                      className="absolute text-xs text-muted-foreground -translate-x-1/2"
+                                      style={{ left: `${pct}%` }}
+                                    >
+                                      {tick.label}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                           {block.helpText && (
                             <FieldDescription>
