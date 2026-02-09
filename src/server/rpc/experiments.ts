@@ -164,6 +164,22 @@ function serializeBlock(doc: BlockDoc): Block {
     };
   }
 
+  if (doc.type === "stopwatch") {
+    return {
+      type: "stopwatch",
+      id: doc.id!,
+      label: {
+        en: doc.label?.en || "",
+        es: doc.label?.es || "",
+      },
+      helpText: doc.helpText
+        ? { en: doc.helpText.en || "", es: doc.helpText.es || "" }
+        : undefined,
+      required: doc.required,
+      resettable: doc.resettable,
+    };
+  }
+
   // select
   return {
     type: "select",
@@ -241,7 +257,7 @@ interface SelectOptionInput {
   label: { en: string; es: string };
 }
 
-type BlockInput =
+export type BlockInput =
   | { type: "markdown"; id: string; content: { en?: string; es?: string } }
   | {
       type: "text";
@@ -265,6 +281,7 @@ type BlockInput =
       label: { en: string; es: string };
       helpText?: { en: string; es: string };
       required?: boolean;
+      multiple?: boolean;
       options: SelectOptionInput[];
     }
   | {
@@ -277,6 +294,14 @@ type BlockInput =
       max: number;
       step: number;
       tickmarks?: { value: number; label: string }[];
+    }
+  | {
+      type: "stopwatch";
+      id: string;
+      label: { en: string; es: string };
+      helpText?: { en: string; es: string };
+      required?: boolean;
+      resettable?: boolean;
     };
 
 interface TaskInput {
@@ -341,6 +366,16 @@ function blockInputToDoc(b: BlockInput): BlockDoc {
       tickmarks: b.tickmarks,
     };
   }
+  if (b.type === "stopwatch") {
+    return {
+      type: "stopwatch",
+      id: b.id,
+      label: b.label,
+      helpText: b.helpText,
+      required: b.required,
+      resettable: b.resettable,
+    };
+  }
   // select
   return {
     type: "select",
@@ -348,6 +383,7 @@ function blockInputToDoc(b: BlockInput): BlockDoc {
     label: b.label,
     helpText: b.helpText,
     required: b.required,
+    multiple: b.multiple,
     options: b.options.map((opt) => ({
       value: opt.value,
       label: opt.label,

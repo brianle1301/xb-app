@@ -32,6 +32,7 @@ import {
   List,
   Plus,
   SlidersHorizontal,
+  Timer,
   Trash2,
   Type,
 } from "lucide-react";
@@ -80,6 +81,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { BlockInput } from "@/server/rpc/experiments";
 import type {
   Block,
   ExperimentDay,
@@ -168,12 +170,24 @@ export interface SliderBlockFormValue {
   tickmarks: SliderTickmarkFormValue[];
 }
 
+export interface StopwatchBlockFormValue {
+  type: "stopwatch";
+  id: string;
+  labelEn: string;
+  labelEs: string;
+  helpTextEn: string;
+  helpTextEs: string;
+  required: boolean;
+  resettable: boolean;
+}
+
 export type BlockFormValue =
   | MarkdownBlockFormValue
   | TextBlockFormValue
   | NumberBlockFormValue
   | SelectBlockFormValue
-  | SliderBlockFormValue;
+  | SliderBlockFormValue
+  | StopwatchBlockFormValue;
 
 export interface TaskFormValue {
   id: string;
@@ -211,44 +225,7 @@ export interface SelectOptionApiInput {
   label: { en: string; es: string };
 }
 
-export type BlockApiInput =
-  | { type: "markdown"; id: string; content: { en?: string; es?: string } }
-  | {
-      type: "text";
-      id: string;
-      label: { en: string; es: string };
-      helpText?: { en: string; es: string };
-      placeholder?: { en: string; es: string };
-      required?: boolean;
-    }
-  | {
-      type: "number";
-      id: string;
-      label: { en: string; es: string };
-      helpText?: { en: string; es: string };
-      placeholder?: { en: string; es: string };
-      required?: boolean;
-    }
-  | {
-      type: "select";
-      id: string;
-      label: { en: string; es: string };
-      helpText?: { en: string; es: string };
-      required?: boolean;
-      multiple?: boolean;
-      options: SelectOptionApiInput[];
-    }
-  | {
-      type: "slider";
-      id: string;
-      label: { en: string; es: string };
-      helpText?: { en: string; es: string };
-      required?: boolean;
-      min: number;
-      max: number;
-      step: number;
-      tickmarks?: { value: number; label: string }[];
-    };
+export type BlockApiInput = BlockInput;
 
 export interface TaskApiInput {
   id: string;
@@ -337,6 +314,18 @@ function blockToFormValue(block: Block): BlockFormValue {
       tickmarks: (block.tickmarks ?? []).map((t) => ({ value: t.value, label: t.label })),
     };
   }
+  if (block.type === "stopwatch") {
+    return {
+      type: "stopwatch",
+      id: block.id,
+      labelEn: block.label.en,
+      labelEs: block.label.es,
+      helpTextEn: block.helpText?.en ?? "",
+      helpTextEs: block.helpText?.es ?? "",
+      required: block.required ?? false,
+      resettable: block.resettable ?? true,
+    };
+  }
   // select
   return {
     type: "select",
@@ -409,6 +398,19 @@ function formValueToBlock(value: BlockFormValue): BlockApiInput {
       max: value.max,
       step: value.step,
       tickmarks: value.tickmarks.length > 0 ? value.tickmarks : undefined,
+    };
+  }
+  if (value.type === "stopwatch") {
+    return {
+      type: "stopwatch",
+      id: value.id,
+      label: { en: value.labelEn, es: value.labelEs },
+      helpText:
+        value.helpTextEn || value.helpTextEs
+          ? { en: value.helpTextEn, es: value.helpTextEs }
+          : undefined,
+      required: value.required || undefined,
+      resettable: value.resettable === false ? false : undefined,
     };
   }
   // select
@@ -608,6 +610,7 @@ const blockTypeInfo = {
   number: { icon: Hash, label: "Number Input" },
   select: { icon: List, label: "Select" },
   slider: { icon: SlidersHorizontal, label: "Slider" },
+  stopwatch: { icon: Timer, label: "Stopwatch" },
 };
 
 function BlockEditor({
@@ -1225,6 +1228,103 @@ function BlockEditor({
                 </form.Field>
               </>
             )}
+
+            {blockType === "stopwatch" && (
+              <>
+                <form.Field name={`${basePath}.labelEn`}>
+                  {(subField: {
+                    state: { value: string };
+                    handleChange: (v: string) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Label (English)</FieldLabel>
+                      <Input
+                        value={subField.state.value}
+                        onChange={(e) => subField.handleChange(e.target.value)}
+                        placeholder="Field label..."
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.labelEs`}>
+                  {(subField: {
+                    state: { value: string };
+                    handleChange: (v: string) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Label (Spanish)</FieldLabel>
+                      <Input
+                        value={subField.state.value}
+                        onChange={(e) => subField.handleChange(e.target.value)}
+                        placeholder="Etiqueta del campo..."
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.helpTextEn`}>
+                  {(subField: {
+                    state: { value: string };
+                    handleChange: (v: string) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Help Text (English)</FieldLabel>
+                      <Input
+                        value={subField.state.value}
+                        onChange={(e) => subField.handleChange(e.target.value)}
+                        placeholder="Optional help text..."
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.helpTextEs`}>
+                  {(subField: {
+                    state: { value: string };
+                    handleChange: (v: string) => void;
+                  }) => (
+                    <Field>
+                      <FieldLabel>Help Text (Spanish)</FieldLabel>
+                      <Input
+                        value={subField.state.value}
+                        onChange={(e) => subField.handleChange(e.target.value)}
+                        placeholder="Texto de ayuda opcional..."
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.required`}>
+                  {(subField: {
+                    state: { value: boolean };
+                    handleChange: (v: boolean) => void;
+                  }) => (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`${basePath}.required`}
+                        checked={subField.state.value}
+                        onCheckedChange={subField.handleChange}
+                      />
+                      <Label htmlFor={`${basePath}.required`}>Required</Label>
+                    </div>
+                  )}
+                </form.Field>
+                <form.Field name={`${basePath}.resettable`}>
+                  {(subField: {
+                    state: { value: boolean };
+                    handleChange: (v: boolean) => void;
+                  }) => (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`${basePath}.resettable`}
+                        checked={subField.state.value}
+                        onCheckedChange={subField.handleChange}
+                      />
+                      <Label htmlFor={`${basePath}.resettable`}>
+                        Allow reset
+                      </Label>
+                    </div>
+                  )}
+                </form.Field>
+              </>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -1345,6 +1445,18 @@ function TaskEditor({
         max: 100,
         step: 1,
         tickmarks: [],
+      };
+    }
+    if (type === "stopwatch") {
+      return {
+        type: "stopwatch",
+        id,
+        labelEn: "",
+        labelEs: "",
+        helpTextEn: "",
+        helpTextEs: "",
+        required: false,
+        resettable: true,
       };
     }
     return {
@@ -1501,6 +1613,12 @@ function TaskEditor({
                         >
                           <SlidersHorizontal className="size-4" />
                           Slider
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => field.pushValue(createBlock("stopwatch"))}
+                        >
+                          <Timer className="size-4" />
+                          Stopwatch
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -2169,6 +2287,16 @@ export function ExperimentEditor({
                             max: b.max,
                             step: b.step,
                             tickmarks: b.tickmarks,
+                          };
+                        }
+                        if (b.type === "stopwatch") {
+                          return {
+                            type: "stopwatch" as const,
+                            id: b.id,
+                            label: { en: b.labelEn, es: b.labelEs },
+                            helpText: { en: b.helpTextEn, es: b.helpTextEs },
+                            required: b.required,
+                            resettable: b.resettable,
                           };
                         }
                         // select

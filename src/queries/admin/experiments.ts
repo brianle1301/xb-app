@@ -1,6 +1,7 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
+  type BlockInput,
   createExperiment,
   deleteExperiment,
   listAllExperiments,
@@ -22,48 +23,6 @@ interface OverviewInput {
   thumbnail: string;
   content: LocalizedText;
 }
-
-interface SelectOptionInput {
-  value: string;
-  label: { en: string; es: string };
-}
-
-type BlockInput =
-  | { type: "markdown"; id: string; content: { en?: string; es?: string } }
-  | {
-      type: "text";
-      id: string;
-      label: { en: string; es: string };
-      helpText?: { en: string; es: string };
-      placeholder?: { en: string; es: string };
-      required?: boolean;
-    }
-  | {
-      type: "number";
-      id: string;
-      label: { en: string; es: string };
-      helpText?: { en: string; es: string };
-      placeholder?: { en: string; es: string };
-      required?: boolean;
-    }
-  | {
-      type: "select";
-      id: string;
-      label: { en: string; es: string };
-      helpText?: { en: string; es: string };
-      required?: boolean;
-      options: SelectOptionInput[];
-    }
-  | {
-      type: "slider";
-      id: string;
-      label: { en: string; es: string };
-      helpText?: { en: string; es: string };
-      required?: boolean;
-      min: number;
-      max: number;
-      step: number;
-    };
 
 interface TaskInput {
   id: string;

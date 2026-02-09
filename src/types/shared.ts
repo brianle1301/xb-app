@@ -76,10 +76,19 @@ export interface SliderBlock {
   tickmarks?: SliderTickmark[];
 }
 
-export type Block = MarkdownBlock | TextBlock | NumberBlock | SelectBlock | SliderBlock;
+export interface StopwatchBlock {
+  type: "stopwatch";
+  id: string;
+  label: LocalizedText;
+  helpText?: LocalizedText;
+  required?: boolean;
+  resettable?: boolean;
+}
+
+export type Block = MarkdownBlock | TextBlock | NumberBlock | SelectBlock | SliderBlock | StopwatchBlock;
 
 // Helper type for blocks that collect user input
-export type InputBlock = TextBlock | NumberBlock | SelectBlock | SliderBlock;
+export type InputBlock = TextBlock | NumberBlock | SelectBlock | SliderBlock | StopwatchBlock;
 
 // ============ Overview ============
 

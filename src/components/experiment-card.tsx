@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertCircle, Check, ChevronRight, Play, Undo2 } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, Pause, Play, RotateCcw, Timer, Undo2 } from "lucide-react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Thumbnail } from "@/components/thumbnail";
@@ -51,6 +51,118 @@ import type {
   Task,
 } from "@/types/shared";
 
+// Format seconds into MM:SS or HH:MM:SS
+function formatElapsed(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  if (hours > 0) {
+    const hh = String(hours).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  }
+  return `${mm}:${ss}`;
+}
+
+function StopwatchInput({
+  blockId,
+  resettable,
+  disabled,
+  value,
+  onChange,
+}: {
+  blockId: string;
+  resettable: boolean;
+  disabled: boolean;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(() =>
+    value ? Number(value) : 0,
+  );
+  const [isRunning, setIsRunning] = React.useState(false);
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Stop interval on unmount
+  React.useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  const start = () => {
+    if (isRunning || disabled) return;
+    setIsRunning(true);
+    intervalRef.current = setInterval(() => {
+      setElapsedSeconds((prev) => {
+        const next = prev + 1;
+        onChange(String(next));
+        return next;
+      });
+    }, 1000);
+  };
+
+  const stop = () => {
+    if (!isRunning) return;
+    setIsRunning(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const reset = () => {
+    stop();
+    setElapsedSeconds(0);
+    onChange("0");
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="text-3xl font-mono text-center tabular-nums">
+        {formatElapsed(elapsedSeconds)}
+      </div>
+      <div className="flex gap-2 justify-center">
+        {!isRunning ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={start}
+            disabled={disabled}
+          >
+            <Play className="w-4 h-4 mr-1" />
+            Start
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={stop}
+            disabled={disabled}
+          >
+            <Pause className="w-4 h-4 mr-1" />
+            Stop
+          </Button>
+        )}
+        {resettable && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={reset}
+            disabled={disabled}
+          >
+            <RotateCcw className="w-4 h-4 mr-1" />
+            Reset
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // TaskList component props
 export interface TaskListProps {
   tasks: Task[];
@@ -94,7 +206,7 @@ export function TaskList({
     const requiredBlocks =
       selectedTask.blocks?.filter(
         (b): b is Block & { id: string; required: true } =>
-          (b.type === "text" || b.type === "number" || b.type === "select" || b.type === "slider") &&
+          (b.type === "text" || b.type === "number" || b.type === "select" || b.type === "slider" || b.type === "stopwatch") &&
           !!b.required,
       ) || [];
     const missingRequired = requiredBlocks.some(
@@ -423,6 +535,36 @@ export function TaskList({
                               </div>
                             )}
                           </div>
+                          {block.helpText && (
+                            <FieldDescription>
+                              {getLocalized(block.helpText, language)}
+                            </FieldDescription>
+                          )}
+                        </Field>
+                      );
+                    }
+
+                    if (block.type === "stopwatch") {
+                      return (
+                        <Field key={index}>
+                          <FieldLabel>
+                            {getLocalized(block.label, language)}
+                            {block.required && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
+                          </FieldLabel>
+                          <StopwatchInput
+                            blockId={block.id}
+                            resettable={block.resettable !== false}
+                            disabled={isDisabled}
+                            value={formResponses[block.id] || ""}
+                            onChange={(value) =>
+                              setFormResponses((prev) => ({
+                                ...prev,
+                                [block.id]: value,
+                              }))
+                            }
+                          />
                           {block.helpText && (
                             <FieldDescription>
                               {getLocalized(block.helpText, language)}

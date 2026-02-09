@@ -17,7 +17,7 @@ export interface SelectOptionDoc {
 }
 
 export interface BlockDoc {
-  type: "markdown" | "text" | "number" | "select" | "slider";
+  type: "markdown" | "text" | "number" | "select" | "slider" | "stopwatch";
   id: string;
   content?: { en?: string; es?: string };
   label?: { en?: string; es?: string };
@@ -30,6 +30,7 @@ export interface BlockDoc {
   max?: number;
   step?: number;
   tickmarks?: { value: number; label: string }[];
+  resettable?: boolean;
 }
 
 export interface TaskDoc {
