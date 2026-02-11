@@ -7,6 +7,7 @@ import {
   getUserSubscriptions,
   offerExperimentToUser,
   startSubscription,
+  submitTaskResponse,
   uncompleteTask,
 } from "@/server/rpc/subscriptions";
 
@@ -59,6 +60,16 @@ export const useCompleteTaskMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: completeTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+    },
+  });
+};
+
+export const useSubmitTaskResponseMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: submitTaskResponse,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
     },

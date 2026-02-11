@@ -9,7 +9,7 @@ import {
   serializeTask,
 } from "./experiments";
 
-import { getExperiments, getJournalEntries } from "../db/client";
+import { getExperiments, getJournal } from "../db/client";
 import type { ExperimentDoc, TaskDoc } from "../db/types";
 
 // ============ Types ============
@@ -70,10 +70,10 @@ export const getJournalEntriesByDate = createServerFn({ method: "POST" })
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
-      const journalEntriesCol = await getJournalEntries();
+      const journalCol = await getJournal();
       const experimentsCol = await getExperiments();
 
-      const entries = await journalEntriesCol
+      const entries = await journalCol
         .find({
           userId,
           date: {

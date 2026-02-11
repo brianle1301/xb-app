@@ -10,7 +10,7 @@ import {
   useCompleteTaskMutation,
   userSubscriptionsQuery,
   useStartSubscriptionMutation,
-  useUncompleteTaskMutation,
+  useSubmitTaskResponseMutation,
 } from "@/queries/subscriptions";
 
 export const Route = createFileRoute("/_app/boxes/$boxId/experiments")({
@@ -45,7 +45,7 @@ function BoxExperimentsPage() {
 
   const startMutation = useStartSubscriptionMutation();
   const completeMutation = useCompleteTaskMutation();
-  const uncompleteMutation = useUncompleteTaskMutation();
+  const submitResponseMutation = useSubmitTaskResponseMutation();
 
   return (
     <div className="pt-6">
@@ -95,8 +95,17 @@ function BoxExperimentsPage() {
                 completedTaskKeys.has(`${taskId}-${dayNumber}`)
               }
               onStart={() => startMutation.mutate(subscription.id)}
-              onCompleteTask={(taskId, dayNumber, responses) =>
+              onCompleteTask={(taskId, dayNumber) =>
                 completeMutation.mutate({
+                  data: {
+                    subscriptionId: subscription.id,
+                    taskId,
+                    dayNumber,
+                  },
+                })
+              }
+              onSubmitResponse={(taskId, dayNumber, responses) =>
+                submitResponseMutation.mutate({
                   data: {
                     subscriptionId: subscription.id,
                     taskId,
@@ -105,18 +114,9 @@ function BoxExperimentsPage() {
                   },
                 })
               }
-              onUncompleteTask={(taskId, dayNumber) =>
-                uncompleteMutation.mutate({
-                  data: {
-                    subscriptionId: subscription.id,
-                    taskId,
-                    dayNumber,
-                  },
-                })
-              }
               isStartPending={startMutation.isPending}
               isCompletePending={completeMutation.isPending}
-              isUncompletePending={uncompleteMutation.isPending}
+              isSubmitPending={submitResponseMutation.isPending}
             />
           );
         })}

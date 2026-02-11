@@ -55,10 +55,10 @@ export const getSubscriptions = createServerOnlyFn(
   },
 );
 
-export const getJournalEntries = createServerOnlyFn(
+export const getJournal = createServerOnlyFn(
   async (): Promise<Collection<JournalEntryDoc>> => {
     const database = await getDB();
-    return database.collection<JournalEntryDoc>("journalentries");
+    return database.collection<JournalEntryDoc>("journal");
   },
 );
 
@@ -72,7 +72,7 @@ export const getDocuments = createServerOnlyFn(
 // Create indexes (call once at startup)
 export const createIndexes = createServerOnlyFn(async (): Promise<void> => {
   const subscriptions = await getSubscriptions();
-  const journalEntries = await getJournalEntries();
+  const journal = await getJournal();
   const documents = await getDocuments();
 
   // Subscription: unique active subscription per user/experiment
@@ -84,10 +84,14 @@ export const createIndexes = createServerOnlyFn(async (): Promise<void> => {
     },
   );
 
-  // JournalEntry: unique entry per user/subscription/task/day
-  await journalEntries.createIndex(
+  // Journal: index for querying by user/task/day (non-unique, multiple responses allowed)
+  await journal.createIndex(
     { userId: 1, subscriptionId: 1, taskId: 1, dayNumber: 1 },
-    { unique: true },
+  );
+
+  // Journal: index for querying by user and date (log page)
+  await journal.createIndex(
+    { userId: 1, date: -1 },
   );
 
   // Document: unique slug

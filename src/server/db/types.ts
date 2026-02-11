@@ -75,8 +75,8 @@ export interface ExperimentDoc {
 export interface TaskCompletionEntry {
   taskId: string;
   dayNumber: number;
-  completedAt: Date;
-  responses?: Record<string, string>;
+  firstCompletedAt: Date;
+  responseCount: number;
 }
 
 export interface SubscriptionDoc {

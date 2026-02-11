@@ -13,7 +13,7 @@ import {
 import {
   getClient,
   getExperiments,
-  getJournalEntries,
+  getJournal,
   getSubscriptions,
 } from "../db/client";
 import type {
@@ -33,8 +33,8 @@ export type SubscriptionStatus =
 export interface TaskCompletion {
   taskId: string;
   dayNumber: number;
-  completedAt: Date;
-  responses?: Record<string, string>;
+  firstCompletedAt: Date;
+  responseCount: number;
 }
 
 export interface Subscription {
@@ -74,8 +74,8 @@ function serializeCompletion(entry: TaskCompletionEntry): TaskCompletion {
   return {
     taskId: entry.taskId.toString(),
     dayNumber: entry.dayNumber,
-    completedAt: entry.completedAt,
-    responses: entry.responses,
+    firstCompletedAt: entry.firstCompletedAt,
+    responseCount: entry.responseCount,
   };
 }
 
@@ -359,7 +359,7 @@ export const offerExperimentToUser = createServerFn({ method: "POST" })
 
 // ============ Task Completion Functions ============
 
-// Complete a task
+// Complete a task (for tasks without input blocks — idempotent, no journal entry)
 export const completeTask = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
@@ -367,38 +367,82 @@ export const completeTask = createServerFn({ method: "POST" })
       subscriptionId: string;
       taskId: string;
       dayNumber: number;
-      responses?: Record<string, string>;
+    }) => data,
+  )
+  .handler(async ({ data, context }): Promise<TaskCompletion> => {
+    const userId = context.user.id;
+    const subscriptionsCol = await getSubscriptions();
+
+    const now = new Date();
+    const subscriptionIdObj = new ObjectId(data.subscriptionId);
+
+    // Check if completion already exists for this task/day
+    const subscription = await subscriptionsCol.findOne({
+      _id: subscriptionIdObj,
+      userId,
+    });
+
+    if (!subscription) {
+      throw new Error("Subscription not found");
+    }
+
+    const existing = (subscription.completions || []).find(
+      (c) => c.taskId === data.taskId && c.dayNumber === data.dayNumber,
+    );
+
+    if (existing) {
+      // Already completed — return existing (idempotent)
+      return serializeCompletion(existing);
+    }
+
+    const completion: TaskCompletionEntry = {
+      taskId: data.taskId,
+      dayNumber: data.dayNumber,
+      firstCompletedAt: now,
+      responseCount: 0,
+    };
+
+    await subscriptionsCol.updateOne(
+      { _id: subscriptionIdObj },
+      {
+        $push: { completions: completion },
+        $set: { updatedAt: now },
+      },
+    );
+
+    return serializeCompletion(completion);
+  });
+
+// Submit a task response (allows multiple responses per task/day)
+export const submitTaskResponse = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (data: {
+      subscriptionId: string;
+      taskId: string;
+      dayNumber: number;
+      responses: Record<string, string>;
     }) => data,
   )
   .handler(async ({ data, context }): Promise<TaskCompletion> => {
     const userId = context.user.id;
     const client = await getClient();
     const subscriptionsCol = await getSubscriptions();
-    const journalEntriesCol = await getJournalEntries();
+    const journalCol = await getJournal();
 
     const now = new Date();
     const subscriptionIdObj = new ObjectId(data.subscriptionId);
 
-    const completion: TaskCompletionEntry = {
-      taskId: data.taskId,
-      dayNumber: data.dayNumber,
-      completedAt: now,
-      responses: data.responses,
-    };
-
     const session = client.startSession();
+
+    let resultCompletion: TaskCompletion;
 
     try {
       session.startTransaction();
 
-      // Get subscription and remove existing completion for this task/day
-      const subscription = await subscriptionsCol.findOneAndUpdate(
+      // Verify subscription exists and belongs to user
+      const subscription = await subscriptionsCol.findOne(
         { _id: subscriptionIdObj, userId },
-        {
-          $pull: {
-            completions: { taskId: data.taskId, dayNumber: data.dayNumber },
-          },
-        },
         { session },
       );
 
@@ -406,40 +450,67 @@ export const completeTask = createServerFn({ method: "POST" })
         throw new Error("Subscription not found");
       }
 
-      // Add the new completion
-      await subscriptionsCol.updateOne(
-        { _id: subscriptionIdObj },
-        {
-          $push: { completions: completion },
-          $set: { updatedAt: now },
-        },
-        { session },
+      // Check if a completion entry already exists for this task/day
+      const existing = (subscription.completions || []).find(
+        (c) => c.taskId === data.taskId && c.dayNumber === data.dayNumber,
       );
 
-      // Create or update journal entry
-      await journalEntriesCol.findOneAndUpdate(
+      if (existing) {
+        // Increment responseCount on existing completion
+        await subscriptionsCol.updateOne(
+          {
+            _id: subscriptionIdObj,
+            "completions.taskId": data.taskId,
+            "completions.dayNumber": data.dayNumber,
+          },
+          {
+            $inc: { "completions.$.responseCount": 1 },
+            $set: { updatedAt: now },
+          },
+          { session },
+        );
+
+        resultCompletion = {
+          taskId: existing.taskId,
+          dayNumber: existing.dayNumber,
+          firstCompletedAt: existing.firstCompletedAt,
+          responseCount: existing.responseCount + 1,
+        };
+      } else {
+        // Create new completion entry
+        const completion: TaskCompletionEntry = {
+          taskId: data.taskId,
+          dayNumber: data.dayNumber,
+          firstCompletedAt: now,
+          responseCount: 1,
+        };
+
+        await subscriptionsCol.updateOne(
+          { _id: subscriptionIdObj },
+          {
+            $push: { completions: completion },
+            $set: { updatedAt: now },
+          },
+          { session },
+        );
+
+        resultCompletion = serializeCompletion(completion);
+      }
+
+      // Insert a new journal entry (one per response submission)
+      await journalCol.insertOne(
         {
           userId,
           subscriptionId: subscriptionIdObj,
+          experimentId: subscription.experimentId,
           taskId: data.taskId,
           dayNumber: data.dayNumber,
-        },
-        {
-          $set: {
-            userId,
-            subscriptionId: subscriptionIdObj,
-            experimentId: subscription.experimentId,
-            taskId: data.taskId,
-            dayNumber: data.dayNumber,
-            date: now,
-            responses: data.responses || {},
-            updatedAt: now,
-          },
-          $setOnInsert: {
-            createdAt: now,
-          },
-        },
-        { upsert: true, session },
+          date: now,
+          responses: data.responses,
+          createdAt: now,
+          updatedAt: now,
+        } as unknown as import("../db/types").JournalEntryDoc,
+        { session },
       );
 
       await session.commitTransaction();
@@ -450,7 +521,7 @@ export const completeTask = createServerFn({ method: "POST" })
       session.endSession();
     }
 
-    return serializeCompletion(completion);
+    return resultCompletion;
   });
 
 // Uncomplete a task (undo)
@@ -464,7 +535,7 @@ export const uncompleteTask = createServerFn({ method: "POST" })
     const userId = context.user.id;
     const client = await getClient();
     const subscriptionsCol = await getSubscriptions();
-    const journalEntriesCol = await getJournalEntries();
+    const journalCol = await getJournal();
 
     const subscriptionIdObj = new ObjectId(data.subscriptionId);
 
@@ -488,8 +559,8 @@ export const uncompleteTask = createServerFn({ method: "POST" })
         { session },
       );
 
-      // Delete journal entry
-      await journalEntriesCol.deleteOne(
+      // Delete all journal entries for this task/day
+      await journalCol.deleteMany(
         {
           userId,
           subscriptionId: subscriptionIdObj,

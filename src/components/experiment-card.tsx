@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertCircle, Check, ChevronRight, Pause, Play, RotateCcw, Timer, Undo2 } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, Pause, Play, RotateCcw, Send } from "lucide-react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Thumbnail } from "@/components/thumbnail";
@@ -45,11 +45,14 @@ import { getLocalized } from "@/lib/language-context";
 import type {
   Block,
   ExperimentDay,
+  InputBlock,
   Language,
   LocalizedText,
   Overview,
   Task,
 } from "@/types/shared";
+
+// ============ Helpers ============
 
 // Format seconds into MM:SS or HH:MM:SS
 function formatElapsed(totalSeconds: number): string {
@@ -64,6 +67,22 @@ function formatElapsed(totalSeconds: number): string {
   }
   return `${mm}:${ss}`;
 }
+
+// Check if a task has any input blocks
+function hasInputBlocks(task: Task): boolean {
+  return (
+    task.blocks?.some(
+      (b) =>
+        b.type === "text" ||
+        b.type === "number" ||
+        b.type === "select" ||
+        b.type === "slider" ||
+        b.type === "stopwatch",
+    ) ?? false
+  );
+}
+
+// ============ StopwatchInput ============
 
 function StopwatchInput({
   blockId,
@@ -184,16 +203,17 @@ function StopwatchInput({
   );
 }
 
-// TaskList component props
+// ============ TaskList ============
+
 export interface TaskListProps {
   tasks: Task[];
   language: Language;
   dayNumber: number | null;
   isTaskCompleted?: (taskId: string) => boolean;
-  onCompleteTask?: (taskId: string, responses: Record<string, string>) => void;
-  onUncompleteTask?: (taskId: string) => void;
+  onCompleteTask?: (taskId: string) => void;
+  onSubmitResponse?: (taskId: string, responses: Record<string, string>) => void;
   isCompletePending?: boolean;
-  isUncompletePending?: boolean;
+  isSubmitPending?: boolean;
 }
 
 export function TaskList({
@@ -202,45 +222,86 @@ export function TaskList({
   dayNumber,
   isTaskCompleted,
   onCompleteTask,
-  onUncompleteTask,
+  onSubmitResponse,
   isCompletePending,
-  isUncompletePending,
+  isSubmitPending,
 }: TaskListProps) {
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [formResponses, setFormResponses] = React.useState<
+    Record<string, string>
+  >({});
+  const [validationErrors, setValidationErrors] = React.useState<
     Record<string, string>
   >({});
 
   const isPreviewMode = dayNumber === null;
   const selectedTaskCompleted =
     selectedTask && isTaskCompleted?.(selectedTask.id);
+  const selectedTaskHasInputs = selectedTask ? hasInputBlocks(selectedTask) : false;
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
     setFormResponses({});
+    setValidationErrors({});
   };
 
-  const handleCompleteClick = () => {
+  const handleSubmitResponse = () => {
     if (!selectedTask) return;
 
-    // Check required fields
+    // Validate required fields
+    const errors: Record<string, string> = {};
     const requiredBlocks =
       selectedTask.blocks?.filter(
-        (b): b is Block & { id: string; required: true } =>
-          (b.type === "text" || b.type === "number" || b.type === "select" || b.type === "slider" || b.type === "stopwatch") &&
+        (b): b is InputBlock =>
+          (b.type === "text" ||
+            b.type === "number" ||
+            b.type === "select" ||
+            b.type === "slider" ||
+            b.type === "stopwatch") &&
           !!b.required,
-      ) || [];
-    const missingRequired = requiredBlocks.some(
-      (b) => !formResponses[b.id]?.trim(),
-    );
-    if (!selectedTaskCompleted && missingRequired) {
+      ) ?? [];
+
+    for (const block of requiredBlocks) {
+      if (!formResponses[block.id]?.trim()) {
+        errors[block.id] =
+          language === "es"
+            ? "Este campo es obligatorio"
+            : "This field is required";
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
       return;
     }
 
-    if (selectedTaskCompleted) {
-      onUncompleteTask?.(selectedTask.id);
+    onSubmitResponse?.(selectedTask.id, formResponses);
+    setFormResponses({});
+    setValidationErrors({});
+  };
+
+  const handleMarkComplete = () => {
+    if (!selectedTask) return;
+
+    if (selectedTaskHasInputs) {
+      // For tasks with inputs, Mark Complete just closes the drawer
+      setSelectedTask(null);
     } else {
-      onCompleteTask?.(selectedTask.id, formResponses);
+      // For tasks without inputs, create a completion entry
+      onCompleteTask?.(selectedTask.id);
+      setSelectedTask(null);
+    }
+  };
+
+  const handleFieldChange = (blockId: string, value: string) => {
+    setFormResponses((prev) => ({ ...prev, [blockId]: value }));
+    // Clear validation error when user types
+    if (validationErrors[blockId]) {
+      setValidationErrors((prev) => {
+        const next = { ...prev };
+        delete next[blockId];
+        return next;
+      });
     }
   };
 
@@ -253,9 +314,7 @@ export function TaskList({
             <button
               key={task.id}
               onClick={() => handleTaskClick(task)}
-              className={`w-full flex items-center gap-3 p-3 transition-colors text-left ${
-                completed ? "" : "hover:bg-muted"
-              }`}
+              className="w-full flex items-center gap-3 p-3 transition-colors text-left hover:bg-muted"
             >
               {completed ? (
                 <Check className="w-5 h-5 text-green-500 shrink-0" />
@@ -265,9 +324,7 @@ export function TaskList({
                   className="w-5 h-5 text-muted-foreground shrink-0"
                 />
               )}
-              <span
-                className={`flex-1 font-medium ${completed ? "line-through text-muted-foreground" : ""}`}
-              >
+              <span className="flex-1 font-medium">
                 {getLocalized(task.name, language) || (
                   <span className="text-muted-foreground">(Untitled)</span>
                 )}
@@ -300,13 +357,7 @@ export function TaskList({
                       className="w-6 h-6 text-muted-foreground"
                     />
                   )}
-                  <span
-                    className={
-                      selectedTaskCompleted
-                        ? "line-through text-muted-foreground"
-                        : ""
-                    }
-                  >
+                  <span>
                     {getLocalized(selectedTask.name, language) || (
                       <span className="text-muted-foreground">(Untitled)</span>
                     )}
@@ -329,7 +380,8 @@ export function TaskList({
                 </div>
               )}
 
-              <div className="p-4">
+              <div className="p-4 overflow-y-auto">
+                {/* Form blocks */}
                 <FieldGroup>
                   {selectedTask.blocks?.map((block: Block, index: number) => {
                     if (block.type === "markdown") {
@@ -341,7 +393,7 @@ export function TaskList({
                       );
                     }
 
-                    const isDisabled = !!selectedTaskCompleted || isPreviewMode;
+                    const isDisabled = isPreviewMode;
 
                     if (block.type === "text") {
                       return (
@@ -355,10 +407,7 @@ export function TaskList({
                           <Textarea
                             value={formResponses[block.id] || ""}
                             onChange={(e) =>
-                              setFormResponses((prev) => ({
-                                ...prev,
-                                [block.id]: e.target.value,
-                              }))
+                              handleFieldChange(block.id, e.target.value)
                             }
                             placeholder={
                               block.placeholder
@@ -367,6 +416,11 @@ export function TaskList({
                             }
                             disabled={isDisabled}
                           />
+                          {validationErrors[block.id] && (
+                            <p className="text-sm text-destructive">
+                              {validationErrors[block.id]}
+                            </p>
+                          )}
                           {block.helpText && (
                             <FieldDescription>
                               {getLocalized(block.helpText, language)}
@@ -389,10 +443,7 @@ export function TaskList({
                             type="number"
                             value={formResponses[block.id] || ""}
                             onChange={(e) =>
-                              setFormResponses((prev) => ({
-                                ...prev,
-                                [block.id]: e.target.value,
-                              }))
+                              handleFieldChange(block.id, e.target.value)
                             }
                             placeholder={
                               block.placeholder
@@ -401,6 +452,11 @@ export function TaskList({
                             }
                             disabled={isDisabled}
                           />
+                          {validationErrors[block.id] && (
+                            <p className="text-sm text-destructive">
+                              {validationErrors[block.id]}
+                            </p>
+                          )}
                           {block.helpText && (
                             <FieldDescription>
                               {getLocalized(block.helpText, language)}
@@ -449,10 +505,10 @@ export function TaskList({
                                         : selectedValues.filter(
                                             (v) => v !== option.value,
                                           );
-                                      setFormResponses((prev) => ({
-                                        ...prev,
-                                        [block.id]: newValues.join(","),
-                                      }));
+                                      handleFieldChange(
+                                        block.id,
+                                        newValues.join(","),
+                                      );
                                     }}
                                     disabled={isDisabled}
                                   />
@@ -464,6 +520,11 @@ export function TaskList({
                                 </Field>
                               );
                             })}
+                            {validationErrors[block.id] && (
+                              <p className="text-sm text-destructive">
+                                {validationErrors[block.id]}
+                              </p>
+                            )}
                           </FieldSet>
                         );
                       }
@@ -485,10 +546,7 @@ export function TaskList({
                           <RadioGroup
                             value={formResponses[block.id] || ""}
                             onValueChange={(value) =>
-                              setFormResponses((prev) => ({
-                                ...prev,
-                                [block.id]: value,
-                              }))
+                              handleFieldChange(block.id, value)
                             }
                             disabled={isDisabled}
                           >
@@ -509,6 +567,11 @@ export function TaskList({
                               </Field>
                             ))}
                           </RadioGroup>
+                          {validationErrors[block.id] && (
+                            <p className="text-sm text-destructive">
+                              {validationErrors[block.id]}
+                            </p>
+                          )}
                         </FieldSet>
                       );
                     }
@@ -532,10 +595,7 @@ export function TaskList({
                               step={block.step}
                               value={[currentValue]}
                               onValueChange={([val]) =>
-                                setFormResponses((prev) => ({
-                                  ...prev,
-                                  [block.id]: String(val),
-                                }))
+                                handleFieldChange(block.id, String(val))
                               }
                               disabled={isDisabled}
                             />
@@ -556,6 +616,11 @@ export function TaskList({
                               </div>
                             )}
                           </div>
+                          {validationErrors[block.id] && (
+                            <p className="text-sm text-destructive">
+                              {validationErrors[block.id]}
+                            </p>
+                          )}
                           {block.helpText && (
                             <FieldDescription>
                               {getLocalized(block.helpText, language)}
@@ -581,12 +646,14 @@ export function TaskList({
                             disabled={isDisabled}
                             value={formResponses[block.id] || ""}
                             onChange={(value) =>
-                              setFormResponses((prev) => ({
-                                ...prev,
-                                [block.id]: value,
-                              }))
+                              handleFieldChange(block.id, value)
                             }
                           />
+                          {validationErrors[block.id] && (
+                            <p className="text-sm text-destructive">
+                              {validationErrors[block.id]}
+                            </p>
+                          )}
                           {block.helpText && (
                             <FieldDescription>
                               {getLocalized(block.helpText, language)}
@@ -602,32 +669,32 @@ export function TaskList({
               </div>
 
               <div className="p-4 border-t bg-background flex gap-2">
-                {!isPreviewMode && (
+                {!isPreviewMode && selectedTaskHasInputs && (
                   <Button
-                    variant={selectedTaskCompleted ? "outline" : "default"}
                     className="flex-1"
-                    onClick={handleCompleteClick}
-                    disabled={isCompletePending || isUncompletePending}
+                    onClick={handleSubmitResponse}
+                    disabled={isSubmitPending}
                   >
-                    {selectedTaskCompleted ? (
-                      <>
-                        <Undo2 className="w-4 h-4 mr-2" />
-                        Mark Incomplete
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4 mr-2" />
-                        Mark Complete
-                      </>
-                    )}
+                    <Send className="w-4 h-4 mr-2" />
+                    {language === "es" ? "Enviar respuesta" : "Submit Response"}
+                  </Button>
+                )}
+                {!isPreviewMode && !selectedTaskHasInputs && !selectedTaskCompleted && (
+                  <Button
+                    className="flex-1"
+                    onClick={handleMarkComplete}
+                    disabled={isCompletePending}
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    {language === "es" ? "Marcar completado" : "Mark Complete"}
                   </Button>
                 )}
                 <DrawerClose asChild>
                   <Button
-                    variant={!isPreviewMode ? "outline" : "default"}
+                    variant={!isPreviewMode && (selectedTaskHasInputs || !selectedTaskCompleted) ? "outline" : "default"}
                     className="flex-1"
                   >
-                    Close
+                    {language === "es" ? "Cerrar" : "Close"}
                   </Button>
                 </DrawerClose>
               </div>
@@ -638,6 +705,8 @@ export function TaskList({
     </>
   );
 }
+
+// ============ ExperimentCard ============
 
 // Minimal experiment shape needed for the card
 export interface ExperimentCardData {
@@ -664,15 +733,15 @@ export interface ExperimentCardProps {
   subscription?: SubscriptionData;
   isTaskCompleted?: (taskId: string, dayNumber: number) => boolean;
   onStart?: () => void;
-  onCompleteTask?: (
+  onCompleteTask?: (taskId: string, dayNumber: number) => void;
+  onSubmitResponse?: (
     taskId: string,
     dayNumber: number,
     responses: Record<string, string>,
   ) => void;
-  onUncompleteTask?: (taskId: string, dayNumber: number) => void;
   isStartPending?: boolean;
   isCompletePending?: boolean;
-  isUncompletePending?: boolean;
+  isSubmitPending?: boolean;
 }
 
 export function ExperimentCard({
@@ -684,10 +753,10 @@ export function ExperimentCard({
   isTaskCompleted,
   onStart,
   onCompleteTask,
-  onUncompleteTask,
+  onSubmitResponse,
   isStartPending,
   isCompletePending,
-  isUncompletePending,
+  isSubmitPending,
 }: ExperimentCardProps) {
   // Internal expanded state (used if not controlled)
   const [internalExpanded, setInternalExpanded] = React.useState(false);
@@ -795,14 +864,14 @@ export function ExperimentCard({
                     isTaskCompleted={(taskId) =>
                       isTaskCompleted?.(taskId, currentDay) ?? false
                     }
-                    onCompleteTask={(taskId, responses) =>
-                      onCompleteTask?.(taskId, currentDay, responses)
+                    onCompleteTask={(taskId) =>
+                      onCompleteTask?.(taskId, currentDay)
                     }
-                    onUncompleteTask={(taskId) =>
-                      onUncompleteTask?.(taskId, currentDay)
+                    onSubmitResponse={(taskId, responses) =>
+                      onSubmitResponse?.(taskId, currentDay, responses)
                     }
                     isCompletePending={isCompletePending}
-                    isUncompletePending={isUncompletePending}
+                    isSubmitPending={isSubmitPending}
                   />
                 </>
               )}

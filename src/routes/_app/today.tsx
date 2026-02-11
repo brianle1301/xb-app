@@ -23,7 +23,7 @@ import { getLocalized, useLanguage } from "@/lib/language-context";
 import {
   todayTasksQuery,
   useCompleteTaskMutation,
-  useUncompleteTaskMutation,
+  useSubmitTaskResponseMutation,
 } from "@/queries/subscriptions";
 
 export const Route = createFileRoute("/_app/today")({
@@ -44,7 +44,7 @@ function TodayPage() {
   const { data: todayData } = useSuspenseQuery(todayTasksQuery());
 
   const completeMutation = useCompleteTaskMutation();
-  const uncompleteMutation = useUncompleteTaskMutation();
+  const submitResponseMutation = useSubmitTaskResponseMutation();
 
   const filteredTodayData = todayData?.filter((group) => group !== null) || [];
 
@@ -110,8 +110,17 @@ function TodayPage() {
                   isTaskCompleted={(taskId) =>
                     isTaskCompleted(taskId, currentDay)
                   }
-                  onCompleteTask={(taskId, responses) =>
+                  onCompleteTask={(taskId) =>
                     completeMutation.mutate({
+                      data: {
+                        subscriptionId,
+                        taskId,
+                        dayNumber: currentDay,
+                      },
+                    })
+                  }
+                  onSubmitResponse={(taskId, responses) =>
+                    submitResponseMutation.mutate({
                       data: {
                         subscriptionId,
                         taskId,
@@ -120,17 +129,8 @@ function TodayPage() {
                       },
                     })
                   }
-                  onUncompleteTask={(taskId) =>
-                    uncompleteMutation.mutate({
-                      data: {
-                        subscriptionId,
-                        taskId,
-                        dayNumber: currentDay,
-                      },
-                    })
-                  }
                   isCompletePending={completeMutation.isPending}
-                  isUncompletePending={uncompleteMutation.isPending}
+                  isSubmitPending={submitResponseMutation.isPending}
                 />
               </CardContent>
             </Card>
