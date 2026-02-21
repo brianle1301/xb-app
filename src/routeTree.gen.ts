@@ -168,10 +168,10 @@ export interface FileRoutesByFullPath {
   '/admin/experiments/new': typeof AdminExperimentsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/admin/boxes': typeof AdminBoxesIndexRoute
-  '/admin/documents': typeof AdminDocumentsIndexRoute
-  '/admin/experiments': typeof AdminExperimentsIndexRoute
-  '/admin/users': typeof AdminUsersIndexRoute
+  '/admin/boxes/': typeof AdminBoxesIndexRoute
+  '/admin/documents/': typeof AdminDocumentsIndexRoute
+  '/admin/experiments/': typeof AdminExperimentsIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
   '/boxes/$boxId/experiments': typeof AppBoxesBoxIdExperimentsRoute
 }
 export interface FileRoutesByTo {
@@ -243,10 +243,10 @@ export interface FileRouteTypes {
     | '/admin/experiments/new'
     | '/admin/users/$userId'
     | '/api/auth/$'
-    | '/admin/boxes'
-    | '/admin/documents'
-    | '/admin/experiments'
-    | '/admin/users'
+    | '/admin/boxes/'
+    | '/admin/documents/'
+    | '/admin/experiments/'
+    | '/admin/users/'
     | '/boxes/$boxId/experiments'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -326,7 +326,7 @@ declare module '@tanstack/react-router' {
     '/_app': {
       id: '/_app'
       path: ''
-      fullPath: ''
+      fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -382,28 +382,28 @@ declare module '@tanstack/react-router' {
     '/admin/users/': {
       id: '/admin/users/'
       path: '/users'
-      fullPath: '/admin/users'
+      fullPath: '/admin/users/'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/experiments/': {
       id: '/admin/experiments/'
       path: '/experiments'
-      fullPath: '/admin/experiments'
+      fullPath: '/admin/experiments/'
       preLoaderRoute: typeof AdminExperimentsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/documents/': {
       id: '/admin/documents/'
       path: '/documents'
-      fullPath: '/admin/documents'
+      fullPath: '/admin/documents/'
       preLoaderRoute: typeof AdminDocumentsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/boxes/': {
       id: '/admin/boxes/'
       path: '/boxes'
-      fullPath: '/admin/boxes'
+      fullPath: '/admin/boxes/'
       preLoaderRoute: typeof AdminBoxesIndexRouteImport
       parentRoute: typeof AdminRoute
     }

@@ -41,20 +41,18 @@ function DocumentPage() {
   const isPostRegistration = slug === "post-registration";
   const isTracked = isPreRegistration || isPostRegistration;
 
-  const isPublished = document?.status === "published";
-
-  // If document isn't published and it's a tracked document, redirect back
+  // If document not found (unpublished or doesn't exist) and it's a tracked document, redirect back
   React.useEffect(() => {
-    if (!isLoading && !isPublished && isTracked) {
+    if (!isLoading && !document && isTracked) {
       navigate({ to: redirectTo ?? "/login" });
     }
-  }, [isLoading, isPublished, isTracked, redirectTo, navigate]);
+  }, [isLoading, document, isTracked, redirectTo, navigate]);
 
   if (isLoading) {
     return null;
   }
 
-  if (!isPublished) {
+  if (!document) {
     return null;
   }
 
@@ -74,7 +72,7 @@ function DocumentPage() {
   // Non-tracked documents (like lab-overview) show a back button
   if (!isTracked) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-2xl mx-auto px-6 py-6">
           <Link
             to="/experiments"
@@ -92,7 +90,7 @@ function DocumentPage() {
 
   // Tracked documents show Continue button at bottom
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-2xl font-bold mb-6">{title}</h1>

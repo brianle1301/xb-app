@@ -70,7 +70,7 @@ export const getDocumentBySlug = createServerFn({ method: "POST" })
   .inputValidator((data: string) => data)
   .handler(async ({ data: slug }): Promise<Document | null> => {
     const documents = await getDocuments();
-    const doc = await documents.findOne({ slug });
+    const doc = await documents.findOne({ slug, status: "published" });
     if (!doc) {
       return null;
     }

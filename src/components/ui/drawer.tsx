@@ -63,7 +63,7 @@ export function DrawerContent({
         )}
         {...props}
       >
-        <div className="flex flex-col overflow-y-auto flex-1">
+        <div className="flex flex-col overflow-y-auto flex-1 pb-[env(safe-area-inset-bottom)]">
           <div className="bg-muted mx-auto mt-4 hidden h-1.5 w-[100px] shrink-0 rounded-full group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
           <div className="w-full max-w-screen-sm m-auto flex flex-col">
             {children}

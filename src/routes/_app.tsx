@@ -42,8 +42,10 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   return (
     <LanguageProvider>
-      <div className="min-h-screen bg-background pb-16">
-        <Outlet />
+      <div className="h-screen bg-background pt-[env(safe-area-inset-top)] flex flex-col">
+        <div className="flex-1 overflow-y-auto">
+          <Outlet />
+        </div>
         <MobileNav />
       </div>
     </LanguageProvider>

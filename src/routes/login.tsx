@@ -34,7 +34,7 @@ function LoginPage() {
   // Redirect to pre-registration document if published and not yet seen (or content changed)
   React.useEffect(() => {
     if (isLoadingDoc) return;
-    if (!preRegDoc || preRegDoc.status !== "published") return;
+    if (!preRegDoc) return;
 
     const currentHash = hashContent(preRegDoc.content);
     const seenHash = localStorage.getItem("preRegistrationSeenHash");
@@ -84,7 +84,7 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center px-6 py-12 bg-background">
+    <div className="min-h-screen flex flex-col justify-center px-6 py-12 bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="w-full max-w-sm mx-auto">
         <h1 className="text-2xl font-bold text-center mb-8">
           {isSignUp ? "Create Account" : "Welcome Back"}
