@@ -111,6 +111,15 @@ export interface JournalEntryWithPopulatedDoc extends Omit<JournalEntryDoc, "exp
   taskId: TaskDoc;
 }
 
+export interface DeviceDoc {
+  _id: ObjectId;
+  userId: string;
+  token: string;
+  platform: "ios" | "android";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface DocumentDoc {
   _id: ObjectId;
   slug: string;

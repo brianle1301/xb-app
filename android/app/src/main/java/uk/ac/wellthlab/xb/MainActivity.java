@@ -1,4 +1,4 @@
-package com.uos.xb;
+package uk.ac.wellthlab.xb;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -3,6 +3,7 @@ import { type Collection, type Db, MongoClient } from "mongodb";
 
 import type {
   BoxDoc,
+  DeviceDoc,
   DocumentDoc,
   ExperimentDoc,
   JournalEntryDoc,
@@ -69,6 +70,13 @@ export const getDocuments = createServerOnlyFn(
   },
 );
 
+export const getDevices = createServerOnlyFn(
+  async (): Promise<Collection<DeviceDoc>> => {
+    const database = await getDB();
+    return database.collection<DeviceDoc>("devices");
+  },
+);
+
 // Create indexes (call once at startup)
 export const createIndexes = createServerOnlyFn(async (): Promise<void> => {
   const subscriptions = await getSubscriptions();
@@ -96,4 +104,9 @@ export const createIndexes = createServerOnlyFn(async (): Promise<void> => {
 
   // Document: unique slug
   await documents.createIndex({ slug: 1 }, { unique: true });
+
+  // Device: unique token, index by userId
+  const devices = await getDevices();
+  await devices.createIndex({ token: 1 }, { unique: true });
+  await devices.createIndex({ userId: 1 });
 });

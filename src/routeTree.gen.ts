@@ -15,6 +15,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as ApiSendDailyRemindersRouteImport } from './routes/api/send-daily-reminders'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
@@ -61,6 +62,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiSendDailyRemindersRoute = ApiSendDailyRemindersRouteImport.update({
+  id: '/api/send-daily-reminders',
+  path: '/api/send-daily-reminders',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppTodayRoute = AppTodayRouteImport.update({
   id: '/today',
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/journal': typeof AppJournalRoute
   '/settings': typeof AppSettingsRoute
   '/today': typeof AppTodayRoute
+  '/api/send-daily-reminders': typeof ApiSendDailyRemindersRoute
   '/admin/': typeof AdminIndexRoute
   '/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/admin/boxes/$boxId': typeof AdminBoxesBoxIdRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/journal': typeof AppJournalRoute
   '/settings': typeof AppSettingsRoute
   '/today': typeof AppTodayRoute
+  '/api/send-daily-reminders': typeof ApiSendDailyRemindersRoute
   '/admin': typeof AdminIndexRoute
   '/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/admin/boxes/$boxId': typeof AdminBoxesBoxIdRoute
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/_app/journal': typeof AppJournalRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/today': typeof AppTodayRoute
+  '/api/send-daily-reminders': typeof ApiSendDailyRemindersRoute
   '/admin/': typeof AdminIndexRoute
   '/_app/boxes/$boxId': typeof AppBoxesBoxIdRouteWithChildren
   '/admin/boxes/$boxId': typeof AdminBoxesBoxIdRoute
@@ -234,6 +243,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/settings'
     | '/today'
+    | '/api/send-daily-reminders'
     | '/admin/'
     | '/boxes/$boxId'
     | '/admin/boxes/$boxId'
@@ -257,6 +267,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/settings'
     | '/today'
+    | '/api/send-daily-reminders'
     | '/admin'
     | '/boxes/$boxId'
     | '/admin/boxes/$boxId'
@@ -282,6 +293,7 @@ export interface FileRouteTypes {
     | '/_app/journal'
     | '/_app/settings'
     | '/_app/today'
+    | '/api/send-daily-reminders'
     | '/admin/'
     | '/_app/boxes/$boxId'
     | '/admin/boxes/$boxId'
@@ -304,6 +316,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiSendDailyRemindersRoute: typeof ApiSendDailyRemindersRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -350,6 +363,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/send-daily-reminders': {
+      id: '/api/send-daily-reminders'
+      path: '/api/send-daily-reminders'
+      fullPath: '/api/send-daily-reminders'
+      preLoaderRoute: typeof ApiSendDailyRemindersRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/today': {
       id: '/_app/today'
@@ -539,6 +559,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiSendDailyRemindersRoute: ApiSendDailyRemindersRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
